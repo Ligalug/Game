@@ -1,0 +1,18 @@
+// Deterministic tactical terrain; generation does not consume gameplay randomness.
+const Tactics=(()=>{
+ const tiles={ground:{name:'Открытая земля',cost:1},tree:{name:'Густые деревья',blocked:true,blocksSight:true},rock:{name:'Скалы',blocked:true,blocksSight:true},water:{name:'Глубокая вода',blocked:true},bush:{name:'Кустарник',cost:1,cover:2},fence:{name:'Низкая ограда',cost:1,cover:2},rubble:{name:'Каменистая осыпь',cost:2,cover:2},mud:{name:'Грязь',cost:2},marsh:{name:'Топь',cost:3},shallow:{name:'Мелководье',cost:2},hill:{name:'Возвышенность',cost:2,height:1}};
+ const profiles={plain:['rock','bush','mud'],forest:['tree','bush','mud'],hill:['rock','rubble','hill'],mountain:['rock','rubble','hill'],river:['water','bush','shallow'],swamp:['tree','bush','marsh']};
+ function generate(terrain,pos){const profile=profiles[terrain]||profiles.plain;let seed=((S.seed||1)^Math.imul(pos+1,2654435761))>>>0;const rng=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;},out=Array(48).fill('ground'),slots=[];for(const y of [1,2,4])for(const x of [2,3])slots.push([x,y]);for(let i=slots.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}for(let i=0;i<slots.length;i++){const [x,y]=slots[i],kind=profile[i%3];out[y*8+x]=out[y*8+7-x]=kind;}return{terrain,cells:out};}
+ function field(b=S.battle){if(!b)return null;if(!b.field){b.field=generate(cell(b.meta.pos??0).terrain,b.meta.pos??0);for(const u of b.units)if(tiles[b.field.cells[u.pos]]?.blocked)b.field.cells[u.pos]='ground';}return b.field;}
+ function tile(p,b=S.battle){const kind=field(b)?.cells[p]||'ground';return{kind,...(tiles[kind]||tiles.ground)};}
+ function describe(p){const t=tile(p);return`${t.name}. ${t.blocked?'Непроходимо.':`Стоимость входа: ${t.cost} ${t.cost===1?'очко':'очка'} движения.`}${t.blocksSight?' Перекрывает линию видимости.':''}${t.cover?' +'+t.cover+' КБ от стрел и магических атак с расстояния больше одного гекса.':''}${t.height?' +1 к дальним атакам по целям ниже вас.':''}`;}
+ function cube(p){const y=Math.floor(p/8),x=p%8-(y-(y&1))/2;return{x,y:-x-y,z:y};}
+ function line(a,b){const n=dist(a,b,8),v=cube(a),w=cube(b),out=[];for(let i=0;i<=n;i++){const t=n?i/n:0,x=v.x+(w.x-v.x)*t+1e-6,y=v.y+(w.y-v.y)*t+1e-6,z=v.z+(w.z-v.z)*t-2e-6;let rx=Math.round(x),ry=Math.round(y),rz=Math.round(z);const dx=Math.abs(rx-x),dy=Math.abs(ry-y),dz=Math.abs(rz-z);if(dx>dy&&dx>dz)rx=-ry-rz;else if(dy>dz)ry=-rx-rz;else rz=-rx-ry;out.push(rz*8+rx+(rz-(rz&1))/2);}return out;}
+ function sight(a,b){return line(a,b).slice(1,-1).every(p=>!tile(p).blocksSight);}
+ function cover(u,t){const cover=dist(u.pos,t.pos,8)>1?(tile(t.pos).cover||0):0;return cover+(cover&&t.monster?.startsWith('goblin')?1:0);}
+ function elevation(u,t){return dist(u.pos,t.pos,8)>1&&(tile(u.pos).height||0)>(tile(t.pos).height||0)?1:0;}
+ function canAttack(u,t){return !!u&&!!t&&dist(u.pos,t.pos,8)<=u.range&&sight(u.pos,t.pos);}
+ function paths(u){const budget=Bestiary.speed(u),costs=new Map([[u.pos,0]]),prev=new Map(),q=[u.pos];while(q.length){q.sort((a,b)=>costs.get(a)-costs.get(b));const p=q.shift();for(const i of nb(p,8,6)){const t=tile(i);if(t.blocked||occupiedBattle(i))continue;const cost=costs.get(p)+(t.cost||1);if(cost>budget||cost>=(costs.get(i)??Infinity))continue;costs.set(i,cost);prev.set(i,p);q.push(i);}}return{costs,prev};}
+ function route(u,to){const {costs,prev}=paths(u);if(!costs.has(to))return[];const out=[];for(let p=to;p!==u.pos;p=prev.get(p)){if(p==null)return[];out.unshift(p);}return out;}
+ return{tiles,profiles,generate,field,tile,describe,line,sight,cover,elevation,canAttack,paths,route};
+})();
