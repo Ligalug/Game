@@ -55,7 +55,7 @@ with sync_playwright() as pw:
  assert p.evaluate("Lab.state.tiles['6,3'].kind==='rock'&&Lab.state.tiles['6,3'].height===1&&Lab.state.actions===0")
  p.locator('[data-q="2"][data-r="3"]').click()
  assert p.evaluate("Lab.state.tiles['2,3'].kind==='plain'")
- assert 'защищена' in p.inner_text('#editorStatus')
+ assert 'защищен' in p.inner_text('#editorStatus')
  p.click('#saveLayout');p.click('#restart')
  assert p.evaluate("!Lab.editing&&Lab.state.tiles['6,3'].kind==='rock'")
  p.reload();p.uncheck('#motion')

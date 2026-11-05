@@ -115,7 +115,7 @@ with sync_playwright() as pw:
  copy.close();p.locator('summary').last.click()
  with p.expect_download() as dl:p.click('#report')
  result=json.loads(Path(dl.value.path()).read_text())
- assert result['version']=='0.8.3-lab'
+ assert result['version']=='0.8.4-lab'
  ok('Standalone backup boots offline; exported report identifies updated version')
  p.goto(base);p.wait_for_function('Game.painter.ready');p.get_by_role('button',name='Пробный бой 4 на 4',exact=True).click()
  frame=p.frame_locator('#battleLabOverlay iframe');frame.locator('#phase').wait_for();p.locator('#battleLabOverlay > button').click()
@@ -130,8 +130,8 @@ with sync_playwright() as pw:
  assert all(r['winner'] is not None and r['round']<=30 for r in summaries),summaries
  print('Completion metrics:',summaries,flush=True)
  ok('All scenarios reach a result with each engineer subclass; no AI or turn-lock deadlocks')
- p.goto(base+'/battle-lab.html');p.select_option('#scenario','cover');p.click('[data-select="p1"]');p.click('[data-action="attack"]');p.screenshot(path='/tmp/battle-lab-083-cover.png',full_page=True)
- p.set_viewport_size({'width':390,'height':844});p.screenshot(path='/tmp/battle-lab-083-mobile.png',full_page=True)
+ p.goto(base+'/battle-lab.html');p.select_option('#scenario','cover');p.click('[data-select="p1"]');p.click('[data-action="attack"]');p.screenshot(path='/tmp/battle-lab-084-cover.png',full_page=True)
+ p.set_viewport_size({'width':390,'height':844});p.screenshot(path='/tmp/battle-lab-084-mobile.png',full_page=True)
  assert p.evaluate('document.documentElement.scrollWidth<=innerWidth')
  assert not errors,errors
  ok('Desktop and mobile preserve readable controls and contained map scrolling without browser errors')
