@@ -1,0 +1,727 @@
+{
+  "cellWidth": 40,
+  "cellHeight": 48,
+  "columns": 9,
+  "entries": [
+    {
+      "type": "warrior",
+      "sub": "base",
+      "side": 0,
+      "x": 0,
+      "y": 0,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "archer",
+      "sub": "base",
+      "side": 0,
+      "x": 40,
+      "y": 0,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "rogue",
+      "sub": "base",
+      "side": 0,
+      "x": 80,
+      "y": 0,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "acolyte",
+      "sub": "base",
+      "side": 0,
+      "x": 120,
+      "y": 0,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "engineer",
+      "sub": "base",
+      "side": 0,
+      "x": 160,
+      "y": 0,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "warrior",
+      "sub": "bastion",
+      "side": 0,
+      "x": 200,
+      "y": 0,
+      "w": 40,
+      "h": 48,
+      "equipment": "tower-shield"
+    },
+    {
+      "type": "warrior",
+      "sub": "berserker",
+      "side": 0,
+      "x": 240,
+      "y": 0,
+      "w": 40,
+      "h": 48,
+      "equipment": "great-axe"
+    },
+    {
+      "type": "archer",
+      "sub": "sniper",
+      "side": 0,
+      "x": 280,
+      "y": 0,
+      "w": 40,
+      "h": 48,
+      "equipment": "longbow"
+    },
+    {
+      "type": "archer",
+      "sub": "swift",
+      "side": 0,
+      "x": 320,
+      "y": 0,
+      "w": 40,
+      "h": 48,
+      "equipment": "shortbow"
+    },
+    {
+      "type": "rogue",
+      "sub": "assassin",
+      "side": 0,
+      "x": 0,
+      "y": 48,
+      "w": 40,
+      "h": 48,
+      "equipment": "twin-daggers"
+    },
+    {
+      "type": "rogue",
+      "sub": "thief",
+      "side": 0,
+      "x": 40,
+      "y": 48,
+      "w": 40,
+      "h": 48,
+      "equipment": "purse-lockpicks"
+    },
+    {
+      "type": "acolyte",
+      "sub": "priest",
+      "side": 0,
+      "x": 80,
+      "y": 48,
+      "w": 40,
+      "h": 48,
+      "equipment": "sun-staff"
+    },
+    {
+      "type": "acolyte",
+      "sub": "highpriest",
+      "side": 0,
+      "x": 120,
+      "y": 48,
+      "w": 40,
+      "h": 48,
+      "equipment": "mitre-crozier"
+    },
+    {
+      "type": "acolyte",
+      "sub": "elementalist",
+      "side": 0,
+      "x": 160,
+      "y": 48,
+      "w": 40,
+      "h": 48,
+      "equipment": "fire-ice"
+    },
+    {
+      "type": "acolyte",
+      "sub": "cultist",
+      "side": 0,
+      "x": 200,
+      "y": 48,
+      "w": 40,
+      "h": 48,
+      "equipment": "skull-staff"
+    },
+    {
+      "type": "acolyte",
+      "sub": "paladin",
+      "side": 0,
+      "x": 240,
+      "y": 48,
+      "w": 40,
+      "h": 48,
+      "equipment": "holy-shield-mace"
+    },
+    {
+      "type": "engineer",
+      "sub": "armorer",
+      "side": 0,
+      "x": 280,
+      "y": 48,
+      "w": 40,
+      "h": 48,
+      "equipment": "power-gauntlet"
+    },
+    {
+      "type": "engineer",
+      "sub": "demolitionist",
+      "side": 0,
+      "x": 320,
+      "y": 48,
+      "w": 40,
+      "h": 48,
+      "equipment": "bomb-bandolier"
+    },
+    {
+      "type": "engineer",
+      "sub": "fortifier",
+      "side": 0,
+      "x": 0,
+      "y": 96,
+      "w": 40,
+      "h": 48,
+      "equipment": "hammer-blueprint"
+    },
+    {
+      "type": "prisoner",
+      "sub": "base",
+      "side": 0,
+      "x": 40,
+      "y": 96,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "wolf",
+      "sub": "base",
+      "side": 0,
+      "x": 80,
+      "y": 96,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "spider",
+      "sub": "base",
+      "side": 0,
+      "x": 120,
+      "y": 96,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "spinner",
+      "sub": "base",
+      "side": 0,
+      "x": 160,
+      "y": 96,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "skeleton",
+      "sub": "base",
+      "side": 0,
+      "x": 200,
+      "y": 96,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "zombie",
+      "sub": "base",
+      "side": 0,
+      "x": 240,
+      "y": 96,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "goblin",
+      "sub": "base",
+      "side": 0,
+      "x": 280,
+      "y": 96,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "goblinArcher",
+      "sub": "base",
+      "side": 0,
+      "x": 320,
+      "y": 96,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "kobold",
+      "sub": "base",
+      "side": 0,
+      "x": 0,
+      "y": 144,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "slinger",
+      "sub": "base",
+      "side": 0,
+      "x": 40,
+      "y": 144,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "ogre",
+      "sub": "base",
+      "side": 0,
+      "x": 80,
+      "y": 144,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "boar",
+      "sub": "base",
+      "side": 0,
+      "x": 120,
+      "y": 144,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "troll",
+      "sub": "base",
+      "side": 0,
+      "x": 160,
+      "y": 144,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "deathguard",
+      "sub": "base",
+      "side": 0,
+      "x": 200,
+      "y": 144,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "revenant",
+      "sub": "base",
+      "side": 0,
+      "x": 240,
+      "y": 144,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "necromancer",
+      "sub": "base",
+      "side": 0,
+      "x": 280,
+      "y": 144,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "wightlord",
+      "sub": "base",
+      "side": 0,
+      "x": 320,
+      "y": 144,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "warrior",
+      "sub": "base",
+      "side": 1,
+      "x": 0,
+      "y": 192,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "archer",
+      "sub": "base",
+      "side": 1,
+      "x": 40,
+      "y": 192,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "rogue",
+      "sub": "base",
+      "side": 1,
+      "x": 80,
+      "y": 192,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "acolyte",
+      "sub": "base",
+      "side": 1,
+      "x": 120,
+      "y": 192,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "engineer",
+      "sub": "base",
+      "side": 1,
+      "x": 160,
+      "y": 192,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "warrior",
+      "sub": "bastion",
+      "side": 1,
+      "x": 200,
+      "y": 192,
+      "w": 40,
+      "h": 48,
+      "equipment": "tower-shield"
+    },
+    {
+      "type": "warrior",
+      "sub": "berserker",
+      "side": 1,
+      "x": 240,
+      "y": 192,
+      "w": 40,
+      "h": 48,
+      "equipment": "great-axe"
+    },
+    {
+      "type": "archer",
+      "sub": "sniper",
+      "side": 1,
+      "x": 280,
+      "y": 192,
+      "w": 40,
+      "h": 48,
+      "equipment": "longbow"
+    },
+    {
+      "type": "archer",
+      "sub": "swift",
+      "side": 1,
+      "x": 320,
+      "y": 192,
+      "w": 40,
+      "h": 48,
+      "equipment": "shortbow"
+    },
+    {
+      "type": "rogue",
+      "sub": "assassin",
+      "side": 1,
+      "x": 0,
+      "y": 240,
+      "w": 40,
+      "h": 48,
+      "equipment": "twin-daggers"
+    },
+    {
+      "type": "rogue",
+      "sub": "thief",
+      "side": 1,
+      "x": 40,
+      "y": 240,
+      "w": 40,
+      "h": 48,
+      "equipment": "purse-lockpicks"
+    },
+    {
+      "type": "acolyte",
+      "sub": "priest",
+      "side": 1,
+      "x": 80,
+      "y": 240,
+      "w": 40,
+      "h": 48,
+      "equipment": "sun-staff"
+    },
+    {
+      "type": "acolyte",
+      "sub": "highpriest",
+      "side": 1,
+      "x": 120,
+      "y": 240,
+      "w": 40,
+      "h": 48,
+      "equipment": "mitre-crozier"
+    },
+    {
+      "type": "acolyte",
+      "sub": "elementalist",
+      "side": 1,
+      "x": 160,
+      "y": 240,
+      "w": 40,
+      "h": 48,
+      "equipment": "fire-ice"
+    },
+    {
+      "type": "acolyte",
+      "sub": "cultist",
+      "side": 1,
+      "x": 200,
+      "y": 240,
+      "w": 40,
+      "h": 48,
+      "equipment": "skull-staff"
+    },
+    {
+      "type": "acolyte",
+      "sub": "paladin",
+      "side": 1,
+      "x": 240,
+      "y": 240,
+      "w": 40,
+      "h": 48,
+      "equipment": "holy-shield-mace"
+    },
+    {
+      "type": "engineer",
+      "sub": "armorer",
+      "side": 1,
+      "x": 280,
+      "y": 240,
+      "w": 40,
+      "h": 48,
+      "equipment": "power-gauntlet"
+    },
+    {
+      "type": "engineer",
+      "sub": "demolitionist",
+      "side": 1,
+      "x": 320,
+      "y": 240,
+      "w": 40,
+      "h": 48,
+      "equipment": "bomb-bandolier"
+    },
+    {
+      "type": "engineer",
+      "sub": "fortifier",
+      "side": 1,
+      "x": 0,
+      "y": 288,
+      "w": 40,
+      "h": 48,
+      "equipment": "hammer-blueprint"
+    },
+    {
+      "type": "prisoner",
+      "sub": "base",
+      "side": 1,
+      "x": 40,
+      "y": 288,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "wolf",
+      "sub": "base",
+      "side": 1,
+      "x": 80,
+      "y": 288,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "spider",
+      "sub": "base",
+      "side": 1,
+      "x": 120,
+      "y": 288,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "spinner",
+      "sub": "base",
+      "side": 1,
+      "x": 160,
+      "y": 288,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "skeleton",
+      "sub": "base",
+      "side": 1,
+      "x": 200,
+      "y": 288,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "zombie",
+      "sub": "base",
+      "side": 1,
+      "x": 240,
+      "y": 288,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "goblin",
+      "sub": "base",
+      "side": 1,
+      "x": 280,
+      "y": 288,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "goblinArcher",
+      "sub": "base",
+      "side": 1,
+      "x": 320,
+      "y": 288,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "kobold",
+      "sub": "base",
+      "side": 1,
+      "x": 0,
+      "y": 336,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "slinger",
+      "sub": "base",
+      "side": 1,
+      "x": 40,
+      "y": 336,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "ogre",
+      "sub": "base",
+      "side": 1,
+      "x": 80,
+      "y": 336,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "boar",
+      "sub": "base",
+      "side": 1,
+      "x": 120,
+      "y": 336,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "troll",
+      "sub": "base",
+      "side": 1,
+      "x": 160,
+      "y": 336,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "deathguard",
+      "sub": "base",
+      "side": 1,
+      "x": 200,
+      "y": 336,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "revenant",
+      "sub": "base",
+      "side": 1,
+      "x": 240,
+      "y": 336,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "necromancer",
+      "sub": "base",
+      "side": 1,
+      "x": 280,
+      "y": 336,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    },
+    {
+      "type": "wightlord",
+      "sub": "base",
+      "side": 1,
+      "x": 320,
+      "y": 336,
+      "w": 40,
+      "h": 48,
+      "equipment": "basic"
+    }
+  ]
+}

@@ -115,7 +115,7 @@ with sync_playwright() as pw:
  copy.close();p.locator('summary').last.click()
  with p.expect_download() as dl:p.click('#report')
  result=json.loads(Path(dl.value.path()).read_text())
- assert result['version']=='0.8.6-lab'
+ assert result['version']=='0.8.7-lab'
  ok('Standalone backup boots offline; exported report identifies updated version')
  p.goto(base);p.wait_for_function('Game.painter.ready');p.get_by_role('button',name='Пробный бой 4 на 4',exact=True).click()
  frame=p.frame_locator('#battleLabOverlay iframe');frame.locator('#phase').wait_for();p.locator('#battleLabOverlay > button').click()

@@ -45,8 +45,8 @@ with sync_playwright() as pw:
  p.click('[data-select="p1"]');assert 'уворот 20%' in p.inner_text('#stats')
  ok('Dodge genuinely avoids attacks and debuffs but still spends attacker AP and cooldown; percentages are visible')
  p.evaluate('Lab.reset()');assert p.locator('#board .hero-figure').count()==8
- assert p.locator('.hero-figure[data-class="warrior"] path').count()>3
- assert p.locator('.hero-figure[data-class="acolyte"] path').count()>3
+ assert p.locator('.hero-figure[data-class="warrior"] image.pixel-body').count()>0
+ assert p.locator('.hero-figure[data-class="acolyte"] image.pixel-body').count()>0
  assert p.locator('.barrier-aura').count()==2
  ok('Heroes render as distinct equipped figures, with a separate mage barrier aura')
  p.click('#editorToggle');assert p.evaluate('Lab.editing')
