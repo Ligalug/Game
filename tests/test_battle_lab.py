@@ -39,15 +39,15 @@ with sync_playwright() as pw:
  assert result=={'normal':2,'slow':3,'rock':False}
  ok('Mud and slowing spend extra steps; rocks remain impassable')
  result=p.evaluate("()=>{Lab.reset();const vals=[0,25,50,100,200].map(Lab.reduction),u=Lab.state.units[0],t=Lab.state.units[4];const damage={};for(const type of ['piercing','slashing','magic'])damage[type]=Lab.damageForecast(u,t,{lo:10,hi:10,damage:type}).lo;return {vals,damage}}")
- assert result['damage']=={'piercing':6,'slashing':5,'magic':8}
+ assert result['damage']=={'piercing':7,'slashing':5,'magic':8}
  assert abs(result['vals'][1]-1/3)<1e-8 and result['vals'][2]==.5
  assert result['vals'][3]-result['vals'][2]>result['vals'][4]-result['vals'][3]>0
  ok('Three defenses mitigate their own damage type with diminishing percentage gains')
- result=p.evaluate('''()=>{const hits=[];for(let i=0;i<30;i++){Lab.reset();const u=Lab.state.units[i%4],t=Lab.state.units[4];Object.assign(t,{q:u.q+1,r:u.r});const f=Lab.forecast(u,t,'attack'),before=t.hp;Lab.state.seed=i*197;Lab.apply(u,t,'attack');hits.push(f.ok&&before-t.hp>=f.lo&&before-t.hp<=f.hi&&u.ap===2)}return hits.every(Boolean)}''')
+ result=p.evaluate('''()=>{const hits=[];for(let i=0;i<30;i++){Lab.reset();const u=Lab.state.units[i%4],t=Lab.state.units[4];Object.assign(t,{q:u.q+(Lab.spec(u,'attack').range>1?2:1),r:u.r});const f=Lab.forecast(u,t,'attack'),before=t.hp;Lab.state.seed=i*197;Lab.apply(u,t,'attack');hits.push(f.ok&&before-t.hp>=f.lo&&before-t.hp<=f.hi&&u.ap===2)}return hits.every(Boolean)}''')
  assert result
  p.evaluate("Lab.reset();Lab.guard(Lab.state.units[4]);Lab.state.units[0].q=12;Lab.render()")
  f=p.evaluate("Lab.forecast(Lab.state.units[0],Lab.state.units[4],'attack')")
- assert f['defense']==65 and not p.evaluate('Lab.guard(Lab.state.units[4])')
+ assert f['defense']==75 and not p.evaluate('Lab.guard(Lab.state.units[4])')
  ok('Real hits match typed forecasts; guarding adds twenty rating without stacking')
  p.evaluate("Lab.reset('cover')");p.click('[data-select="p1"]');p.click('[data-action="attack"]')
  assert p.locator('.range-clear').count()>0
@@ -115,7 +115,7 @@ with sync_playwright() as pw:
  copy.close();p.locator('summary').last.click()
  with p.expect_download() as dl:p.click('#report')
  result=json.loads(Path(dl.value.path()).read_text())
- assert result['version']=='0.8.2-lab'
+ assert result['version']=='0.8.3-lab'
  ok('Standalone backup boots offline; exported report identifies updated version')
  p.goto(base);p.wait_for_function('Game.painter.ready');p.get_by_role('button',name='Пробный бой 4 на 4',exact=True).click()
  frame=p.frame_locator('#battleLabOverlay iframe');frame.locator('#phase').wait_for();p.locator('#battleLabOverlay > button').click()
@@ -130,8 +130,8 @@ with sync_playwright() as pw:
  assert all(r['winner'] is not None and r['round']<=30 for r in summaries),summaries
  print('Completion metrics:',summaries,flush=True)
  ok('All scenarios reach a result with each engineer subclass; no AI or turn-lock deadlocks')
- p.goto(base+'/battle-lab.html');p.select_option('#scenario','cover');p.click('[data-select="p1"]');p.click('[data-action="attack"]');p.screenshot(path='/tmp/battle-lab-082-cover.png',full_page=True)
- p.set_viewport_size({'width':390,'height':844});p.screenshot(path='/tmp/battle-lab-082-mobile.png',full_page=True)
+ p.goto(base+'/battle-lab.html');p.select_option('#scenario','cover');p.click('[data-select="p1"]');p.click('[data-action="attack"]');p.screenshot(path='/tmp/battle-lab-083-cover.png',full_page=True)
+ p.set_viewport_size({'width':390,'height':844});p.screenshot(path='/tmp/battle-lab-083-mobile.png',full_page=True)
  assert p.evaluate('document.documentElement.scrollWidth<=innerWidth')
  assert not errors,errors
  ok('Desktop and mobile preserve readable controls and contained map scrolling without browser errors')
