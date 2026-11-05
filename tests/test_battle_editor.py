@@ -16,7 +16,7 @@ def ok(t):passed.append(t);print('PASS:',t,flush=True)
 with sync_playwright() as pw:
  b=pw.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
  p=b.new_page(viewport={'width':1700,'height':1200});errors=[];p.on('pageerror',lambda e:errors.append(str(e)))
- p.goto(url);p.uncheck('#motion')
+ p.goto(url);p.uncheck('#motion');p.fill('#critChance','0');p.dispatch_event('#critChance','change')
  p.evaluate("Object.assign(Lab.state.units[4],{q:3,r:4});Object.assign(Lab.state.units[5],{q:6,r:4});Lab.render()")
  p.click('[data-select="p1"]')
  assert p.locator('[data-action="attack"]').is_disabled() and p.locator('[data-action="frost"]').is_disabled()
@@ -33,7 +33,7 @@ with sync_playwright() as pw:
  assert 'Рядом враг' in result['shot'] and result['heal']=='' and result['plan'] is not None
  ok('Engagement also blocks offensive magic while healing remains legal; escape path exists')
  result=p.evaluate("()=>{Lab.reset();const u=Lab.state.units[0],t=Lab.state.units[3],d={lo:10,hi:10,damage:'piercing',name:'Тест',undodgeable:true};const a=Lab.hit(u,t,d),after1={hp:t.hp,barrier:t.barrier},c=Lab.hit(u,t,d),after2={hp:t.hp,barrier:t.barrier};Lab.startSide(1);const enemyTurn=t.barrier;Lab.startSide(0);const ownTurn=t.barrier;for(let i=0;i<5;i++)Lab.startSide(0);return {a,c,after1,after2,enemyTurn,ownTurn,cap:t.barrier}}")
- assert result['after1']=={'hp':24,'barrier':3} and result['after2']=={'hp':18,'barrier':0}
+ assert result['after1']=={'hp':18,'barrier':3} and result['after2']=={'hp':12,'barrier':0}
  assert result['enemyTurn']==0 and result['ownTurn']==4 and result['cap']==12
  ok('Mage barrier absorbs post-defense damage, regenerates only on own turns and caps at twelve')
  result=p.evaluate("()=>{Lab.reset();const u=Lab.state.units[0],t=Lab.state.units[3];Lab.hit(u,t,{lo:1000,hi:1000,damage:'piercing',name:'Тест',undodgeable:true});Lab.startSide(0);return {hp:t.hp,barrier:t.barrier,ap:t.ap}}")
@@ -58,7 +58,7 @@ with sync_playwright() as pw:
  assert 'защищен' in p.inner_text('#editorStatus')
  p.click('#saveLayout');p.click('#restart')
  assert p.evaluate("!Lab.editing&&Lab.state.tiles['6,3'].kind==='rock'")
- p.reload();p.uncheck('#motion')
+ p.reload();p.uncheck('#motion');p.fill('#critChance','0');p.dispatch_event('#critChance','change')
  assert p.evaluate("Lab.state.tiles['6,3'].kind==='rock'&&Lab.state.tiles['6,3'].height===1")
  ok('Editor pauses combat, protects hero starts and preserves custom terrain across restart and reload')
  p.click('#editorToggle')

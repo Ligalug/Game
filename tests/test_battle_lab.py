@@ -16,7 +16,7 @@ def ok(text):passed.append(text);print('PASS:',text,flush=True)
 with sync_playwright() as pw:
  browser=pw.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
  p=browser.new_page(viewport={'width':1600,'height':1100});errors=[];p.on('pageerror',lambda e:errors.append(str(e)))
- p.goto(base+'/battle-lab.html');p.uncheck('#motion')
+ p.goto(base+'/battle-lab.html');p.uncheck('#motion');p.fill('#critChance','0');p.dispatch_event('#critChance','change')
  assert p.locator('.tile').count()==160
  assert p.evaluate('Lab.state.units.length===8&&Lab.state.units.every(u=>u.ap===3)')
  assert p.evaluate('Lab.state.units.filter(u=>u.type==="engineer").length')==2
@@ -99,7 +99,7 @@ with sync_playwright() as pw:
  ok('Fortifier builds an improved ranged cover and bridge; bridge remains available during fortification cooldown')
  p.select_option('#engineerSub','base');p.check('#motion');p.evaluate('Lab.skipAll()');p.click('#end');p.click('#restart');p.wait_for_timeout(700)
  assert p.evaluate('Lab.state.round===1&&Lab.state.side===0&&!Lab.busy&&Lab.state.actions===0')
- p.uncheck('#motion')
+ p.uncheck('#motion');p.fill('#critChance','0');p.dispatch_event('#critChance','change')
  ok('Restart cancels pending animated AI actions')
  p.evaluate("Lab.reset();for(const u of Lab.state.units.filter(u=>u.side===1)){u.hp=0;u.ap=0};Object.assign(Lab.state.units[4],{q:3,r:3,hp:1});Lab.state.units[3].hp=0;Lab.state.units[3].ap=0;Lab.render()")
  p.click('[data-action="attack"]');p.locator('[data-q="3"][data-r="3"]').click()
@@ -115,7 +115,7 @@ with sync_playwright() as pw:
  copy.close();p.locator('summary').last.click()
  with p.expect_download() as dl:p.click('#report')
  result=json.loads(Path(dl.value.path()).read_text())
- assert result['version']=='0.8.4-lab'
+ assert result['version']=='0.8.5-lab'
  ok('Standalone backup boots offline; exported report identifies updated version')
  p.goto(base);p.wait_for_function('Game.painter.ready');p.get_by_role('button',name='Пробный бой 4 на 4',exact=True).click()
  frame=p.frame_locator('#battleLabOverlay iframe');frame.locator('#phase').wait_for();p.locator('#battleLabOverlay > button').click()
@@ -125,7 +125,7 @@ with sync_playwright() as pw:
  p.wait_for_timeout(200);p.locator('#battleLabOverlay > button').click()
  assert p.evaluate('JSON.stringify(Game.state)')==before
  ok('Integrated experiment leaves campaign state unchanged')
- p.goto(base+'/battle-lab.html');p.uncheck('#motion')
+ p.goto(base+'/battle-lab.html');p.uncheck('#motion');p.fill('#critChance','0');p.dispatch_event('#critChance','change')
  summaries=p.evaluate("""async()=>{const results=[];for(const sub of ['base','armorer','demolitionist','fortifier']){document.getElementById('engineerSub').value=sub;for(const scenario of ['equal','cover','rescue']){Lab.reset(scenario);let rounds=0;while(Lab.state.winner===null&&rounds++<30){for(const u of Lab.state.units.filter(u=>u.side===0&&u.hp>0)){document.querySelector('[data-select="'+u.id+'"]').click();let n=0;while((u.ap>0||u.stride>0)&&Lab.state.winner===null&&n++<10){let done=false;if(u.type==='acolyte'){const t=Lab.state.units.filter(t=>t.side===0&&t.hp<=t.max-10).sort((a,b)=>a.hp-b.hp).find(t=>!Lab.check(u,t,'heal'));if(t)done=Lab.apply(u,t,'heal')}if(!done){const options=[];for(const t of Lab.state.units.filter(t=>t.side===1&&t.hp>0)){const f=Lab.forecast(u,t,'attack');if(f.ok)options.push({t,f})}options.sort((a,b)=>a.t.hp-b.t.hp);if(options.length)done=Lab.apply(u,options[0].t,'attack')}if(!done){const dest=Lab.approach(u,Lab.state.units.filter(t=>t.side===1&&t.hp>0));if(dest){await Lab.chooseTile(dest.q,dest.r);done=true}}if(!done)break}}if(Lab.state.winner===null){Lab.skipAll();await Lab.endTurn()}}results.push({sub,scenario,winner:Lab.state.winner,round:Lab.state.round,actions:Lab.state.actions})}}return results}""")
  assert all(r['winner'] is not None and r['round']<=30 for r in summaries),summaries
  print('Completion metrics:',summaries,flush=True)

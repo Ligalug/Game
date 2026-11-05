@@ -15,7 +15,7 @@ def ok(t):passed.append(t);print('PASS:',t,flush=True)
 with sync_playwright() as pw:
  b=pw.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
  p=b.new_page(viewport={'width':1700,'height':1200});errors=[];p.on('pageerror',lambda e:errors.append(str(e)))
- p.goto(url);p.uncheck('#motion');p.select_option('#scenario','convoy')
+ p.goto(url);p.uncheck('#motion');p.fill('#critChance','0');p.dispatch_event('#critChance','change');p.select_option('#scenario','convoy')
  assert p.locator('#objectivePanel').is_visible()
  assert p.evaluate('Lab.state.units.length===8&&Lab.state.objective.wagon.q===7&&Lab.state.objective.prisoner.status==="caged"')
  assert p.locator('[data-objective="stopWagon"]').is_disabled()
@@ -42,9 +42,10 @@ with sync_playwright() as pw:
  p.evaluate('Lab.skipAll()');p.click('#end');p.wait_for_function('!Lab.busy')
  assert p.evaluate('Lab.state.winner===null&&Lab.state.objective.prisoner.ap===2')
  p.click('[data-objective="selectPrisoner"]');p.locator('[data-q="0"][data-r="6"]').click()
- assert p.evaluate('Lab.state.winner===0&&Lab.state.objective.outcome==="rescued"&&Lab.state.units.filter(u=>u.side===1&&u.hp>0).length>0')
- assert 'Пленник выведен' in p.inner_text('#result')
- ok('A complete unmodified starting scenario is won by extraction with living enemy guards, not annihilation')
+ assert p.evaluate('Lab.state.winner===null&&Lab.state.objective.prisoner.status==="evacuated"&&Lab.state.units.filter(u=>u.side===1&&u.hp>0).length>0')
+ assert p.locator('#result').is_hidden()
+ assert 'Разбейте охрану' in p.inner_text('#objectivePanel')
+ ok('Extracting the prisoner with living guards completes rescue but keeps the battle running')
  # Clear guards doesn't end the mission; extraction remains necessary.
  p.evaluate("Lab.reset('convoy');for(const u of Lab.state.units.filter(u=>u.side===1)){u.hp=0;u.ap=0};Lab.render()")
  # finish is triggered by a final actual hit rather than directly calling internal finish.
@@ -104,7 +105,7 @@ with sync_playwright() as pw:
  copy.select_option('#scenario','convoy');assert copy.evaluate('Lab.state.objective.wagon.q===7')
  copy.close();p.locator('summary').last.click()
  with p.expect_download() as dl:p.click('#report')
- result=json.loads(Path(dl.value.path()).read_text());assert result['version']=='0.8.4-lab' and result['objective']['stage']=='caged' and result['objective']['stoppedBy'] is None
+ result=json.loads(Path(dl.value.path()).read_text());assert result['version']=='0.8.5-lab' and result['objective']['stage']=='caged' and result['objective']['stoppedBy'] is None
  p.screenshot(path='/tmp/battle-lab-084-convoy.png',full_page=True)
  p.set_viewport_size({'width':390,'height':844});assert p.evaluate('document.documentElement.scrollWidth<=innerWidth')
  assert not errors,errors
