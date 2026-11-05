@@ -95,7 +95,7 @@ with sync_playwright() as pw:
  assert p.evaluate('Lab.state.objective.prisoner.status==="caged"&&Lab.state.objective.wagon.q===7&&Lab.state.round===1')
  assert p.locator('[data-unit="prisoner"]').count()==0
  p.select_option('#scenario','equal')
- assert p.locator('#objectivePanel').is_hidden() and p.locator('.hero-figure').count()==8
+ assert p.locator('#objectivePanel').is_hidden() and p.locator('#board .hero-figure').count()==8
  ok('Restart and scenario changes remove objective actors and reset mission state')
  p.select_option('#scenario','convoy');p.check('#motion');p.evaluate('Lab.skipAll()');p.click('#end');p.click('#restart');p.wait_for_timeout(700)
  assert p.evaluate('Lab.state.round===1&&Lab.state.objective.wagon.q===7&&!Lab.busy')
@@ -105,7 +105,7 @@ with sync_playwright() as pw:
  copy.select_option('#scenario','convoy');assert copy.evaluate('Lab.state.objective.wagon.q===7')
  copy.close();p.locator('summary').last.click()
  with p.expect_download() as dl:p.click('#report')
- result=json.loads(Path(dl.value.path()).read_text());assert result['version']=='0.8.5-lab' and result['objective']['stage']=='caged' and result['objective']['stoppedBy'] is None
+ result=json.loads(Path(dl.value.path()).read_text());assert result['version']=='0.8.6-lab' and result['objective']['stage']=='caged' and result['objective']['stoppedBy'] is None
  p.screenshot(path='/tmp/battle-lab-084-convoy.png',full_page=True)
  p.set_viewport_size({'width':390,'height':844});assert p.evaluate('document.documentElement.scrollWidth<=innerWidth')
  assert not errors,errors

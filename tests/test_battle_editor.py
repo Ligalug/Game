@@ -44,7 +44,7 @@ with sync_playwright() as pw:
  p.select_option('#squad','classic');p.click('[data-select="p2"]');assert 'уворот 25%' in p.inner_text('#stats')
  p.click('[data-select="p1"]');assert 'уворот 20%' in p.inner_text('#stats')
  ok('Dodge genuinely avoids attacks and debuffs but still spends attacker AP and cooldown; percentages are visible')
- p.evaluate('Lab.reset()');assert p.locator('.hero-figure').count()==8
+ p.evaluate('Lab.reset()');assert p.locator('#board .hero-figure').count()==8
  assert p.locator('.hero-figure[data-class="warrior"] path').count()>3
  assert p.locator('.hero-figure[data-class="acolyte"] path').count()>3
  assert p.locator('.barrier-aura').count()==2

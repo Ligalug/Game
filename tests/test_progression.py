@@ -34,7 +34,7 @@ with sync_playwright() as pw:
  p.select_option('#rogueSub','assassin');assert p.evaluate('Lab.damageForecast(Lab.state.units[2],Lab.state.units[4],Lab.spec(Lab.state.units[2],"attack")).critChance')==.1
  ok('Independent team levels scale HP, damage, defenses and barrier; subclass selectors alter real battle parameters')
  p.select_option('#mageSub','priest')
- result=p.evaluate("()=>{const u=Lab.state.units[3],t=Lab.state.units[0];t.hp=1;const amount=Lab.healing(u),ok=Lab.apply(u,t,'heal');return {amount,ok,hp:t.hp,charges:u.heals}}")
+ result=p.evaluate("()=>{const u=Lab.state.units[3],t=Lab.state.units[0];t.hp=1;const amount=Lab.healing(u),ok=Lab.apply(u,t,'priestHeal');return {amount,ok,hp:t.hp,charges:u.heals}}")
  assert result=={'amount':24,'ok':True,'hp':25,'charges':2}
  ok('Priest subclass and level affect actual healing and available charges')
  p.select_option('#mageSub','cultist')
@@ -42,7 +42,7 @@ with sync_playwright() as pw:
  p.select_option('#squad','engineer');p.select_option('#enemyLevel','1')
  for pack in ['wolves','spiders','undead','goblins','kobolds','ogres','beasts']:
   p.select_option('#enemyType',pack)
-  assert p.locator('.monster-figure').count()==4
+  assert p.locator('#board .monster-figure').count()==4
   assert p.evaluate("Lab.state.units.filter(u=>u.side===1).every(u=>!['warrior','rogue','archer','acolyte','engineer'].includes(u.type))")
   p.evaluate('Lab.skipAll()');p.click('#end');p.wait_for_function('!Lab.busy')
   assert p.evaluate('Lab.state.units.every(u=>u.ap>=0&&u.hp>=0)')
@@ -50,7 +50,7 @@ with sync_playwright() as pw:
  p.select_option('#enemyType','wolves');p.select_option('#playerLevel','1');p.select_option('#mageSub','base')
  result=p.evaluate("()=>{const u=Lab.state.units[4],v=Lab.state.units[5],t=Lab.state.units[0];Object.assign(u,{q:3,r:3});Object.assign(v,{q:3,r:2});const pack=Lab.spec(u,'attack',t).lo;v.q=12;v.r=0;return {pack,alone:Lab.spec(u,'attack',t).lo}}")
  assert result['pack']-result['alone']==2
- p.select_option('#enemyType','spiders')
+ p.select_option('#playerLevel','2');p.select_option('#enemyType','spiders')
  result=p.evaluate("()=>{const u=Lab.state.units[4],t=Lab.state.units[0];Object.assign(u,{q:4,r:3});Lab.state.side=1;const ok=Lab.apply(u,t,'web');return {ok,slow:t.slow}}")
  assert result=={'ok':True,'slow':1}
  p.select_option('#enemyType','undead');assert p.evaluate('Lab.defense(Lab.state.units[4],"piercing")>Lab.defense(Lab.state.units[4],"slashing")')
@@ -95,7 +95,7 @@ with sync_playwright() as pw:
  ok('Falling carrier drops the casualty back onto the battlefield instead of granting extraction')
  # Complete representative high-level creature battles using legal actions.
  p.select_option('#scenario','equal')
- results=p.evaluate("""async()=>{const out=[];for(const [level,pack] of [[5,'spiders'],[8,'undead'],[8,'ogres']]){document.getElementById('playerLevel').value=level;document.getElementById('enemyLevel').value=level;document.getElementById('enemyType').value=pack;Lab.reset('equal');let n=0;while(Lab.state.winner===null&&n++<40){for(const u of Lab.state.units.filter(u=>u.side===0&&u.hp>0)){document.querySelector('[data-select="'+u.id+'"]').click();let moves=0;while((u.ap>0||u.stride>0)&&Lab.state.winner===null&&moves++<12){let acted=false;if(u.type==='acolyte'){const t=Lab.state.units.filter(t=>t.side===0&&t.hp<=t.max-10).find(t=>!Lab.check(u,t,'heal'));if(t)acted=Lab.apply(u,t,'heal')}if(!acted){const t=Lab.state.units.filter(t=>t.side===1&&t.hp>0).sort((a,b)=>a.hp-b.hp).find(t=>Lab.forecast(u,t,'attack').ok);if(t)acted=Lab.apply(u,t,'attack')}if(!acted){const dest=Lab.approach(u,Lab.state.units.filter(t=>t.side===1&&t.hp>0));if(dest){await Lab.chooseTile(dest.q,dest.r);acted=true}}if(!acted)break}}if(Lab.state.winner===null){Lab.skipAll();await Lab.endTurn()}}out.push({level,pack,winner:Lab.state.winner,round:Lab.state.round})}return out}""")
+ results=p.evaluate("""async()=>{const out=[];for(const [level,pack] of [[5,'spiders'],[8,'undead'],[8,'ogres'],[8,'trolls'],[8,'eliteUndead'],[8,'ancientUndead']]){document.getElementById('playerLevel').value=level;document.getElementById('enemyLevel').value=level;document.getElementById('enemyType').value=pack;Lab.reset('equal');let n=0;while(Lab.state.winner===null&&n++<40){for(const u of Lab.state.units.filter(u=>u.side===0&&u.hp>0)){document.querySelector('[data-select="'+u.id+'"]').click();let moves=0;while((u.ap>0||u.stride>0)&&Lab.state.winner===null&&moves++<12){let acted=false;if(u.type==='acolyte'){const t=Lab.state.units.filter(t=>t.side===0&&t.hp<=t.max-10).find(t=>!Lab.check(u,t,'heal'));if(t)acted=Lab.apply(u,t,'heal')}if(!acted){const t=Lab.state.units.filter(t=>t.side===1&&t.hp>0).sort((a,b)=>a.hp-b.hp).find(t=>Lab.forecast(u,t,'attack').ok);if(t)acted=Lab.apply(u,t,'attack')}if(!acted){const dest=Lab.approach(u,Lab.state.units.filter(t=>t.side===1&&t.hp>0));if(dest){await Lab.chooseTile(dest.q,dest.r);acted=true}}if(!acted)break}}if(Lab.state.winner===null){Lab.skipAll();await Lab.endTurn()}}out.push({level,pack,winner:Lab.state.winner,round:Lab.state.round})}return out}""")
  assert all(v['winner'] is not None and v['round']<=40 for v in results),results
  print('High-level battles:',results,flush=True)
  ok('Representative level-five and level-eight creature battles reach a result without stalled AI')
