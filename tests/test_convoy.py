@@ -105,7 +105,7 @@ with sync_playwright() as pw:
  copy.select_option('#scenario','convoy');assert copy.evaluate('Lab.state.objective.wagon.q===7')
  copy.close();p.locator('summary').last.click()
  with p.expect_download() as dl:p.click('#report')
- result=json.loads(Path(dl.value.path()).read_text());assert result['version']=='0.8.7-lab' and result['objective']['stage']=='caged' and result['objective']['stoppedBy'] is None
+ result=json.loads(Path(dl.value.path()).read_text());assert result['version']=='0.8.8-lab' and result['objective']['stage']=='caged' and result['objective']['stoppedBy'] is None
  p.screenshot(path='/tmp/battle-lab-084-convoy.png',full_page=True)
  p.set_viewport_size({'width':390,'height':844});assert p.evaluate('document.documentElement.scrollWidth<=innerWidth')
  assert not errors,errors
