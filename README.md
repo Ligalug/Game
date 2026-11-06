@@ -1,5 +1,6 @@
 # Туман и кости — Наследники короны · знания и мастерство · пробный бой · 0.8.8
 
+Переписка для нового чата: [доступная история](docs/conversation/CHAT_TRANSCRIPT_AVAILABLE.md) · [памятка и пропуски истории](docs/conversation/README.md). Это не полный экспорт: ранние ответы помощника и изображения доступны не полностью.
 Дизайн-документ 1.0: [дорожная карта с задачами](docs/DESIGN_ROADMAP.md) · [интерактивный график](docs/DESIGN_ROADMAP.html) · [PDF](docs/DESIGN_ROADMAP.pdf).
 **Для продолжения в другом чате:** начните с [START_HERE.md](START_HERE.md). Контекст — [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), план — [ROADMAP.md](ROADMAP.md), прежние файлы — [archive/](archive/).
 
