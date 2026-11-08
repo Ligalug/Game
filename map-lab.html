@@ -32,7 +32,7 @@ tile(0,0).kind='plain';tile(1,0).kind='plain';tile(2,0).kind='plain';
 [[2,1],[5,1],[7,5]].forEach(([q,r])=>{tile(q,r).point='resource';tile(q,r).kind='plain'});
 [[3,3],[7,2],[8,6]].forEach(([q,r])=>{tile(q,r).point='dungeon';tile(q,r).kind='plain'});
 [[4,5],[6,4]].forEach(([q,r])=>{tile(q,r).point='enemy';tile(q,r).kind='plain'});
-state={turn:1,gold:40,ore:0,materials:12,squad:{q:0,r:0,mp:4,max:4,alive:4,remains:0,loot:0},dungeon:null};
+state={turn:1,gold:40,ore:0,materials:12,squad:{q:0,r:0,mp:4,max:4,alive:4,remains:0,loot:0,gear:0},dungeon:null};
 selected=tile(0,0);reveal();log('Начало экспедиции. Изучайте карту и добывайте ресурсы.');render()
 }
 function btn(label,fn,disabled=false){let b=document.createElement('button');b.textContent=label;b.disabled=disabled;b.onclick=fn;return b}
@@ -55,7 +55,7 @@ const s=state.squad,{x,y}=hexCenter(s);ctx.beginPath();ctx.arc(x,y+16,11,0,Math.
 function render(){
 reveal();draw();
 el('stats').innerHTML='<span class="pill">Ход: '+state.turn+'</span><span class="pill">Монеты: '+state.gold+'</span><span class="pill">Руда: '+state.ore+'</span><span class="pill">Материалы: '+state.materials+'</span>';
-el('squad').textContent='Герои: '+state.squad.alive+'/4 · ОД: '+state.squad.mp+'/4 · Останки: '+state.squad.remains+' · Трофеи: '+state.squad.loot;
+el('squad').textContent='Герои: '+state.squad.alive+'/4 · ОД: '+state.squad.mp+'/4 · Останки: '+state.squad.remains+' · Трофеи: '+state.squad.loot+' · Снаряжение: '+state.squad.gear;
 el('end').disabled=!!state.dungeon;
 let t=selected;el('tile').textContent=t&&!t.seen?'Неизведанная территория':t?terrain[t.kind].name+' ['+t.q+','+t.r+']'+(t.point?' · '+({resource:'Месторождение',dungeon:'Подземелье',enemy:'Вражеский отряд'}[t.point])):''):'';
 let a=el('actions');a.replaceChildren();
@@ -93,19 +93,19 @@ log('Отряд вошёл в подземелье. Добровольный в�
 }
 function dungeonUI(){
 const d=state.dungeon,box=el('dungeon');box.replaceChildren();if(!d){box.textContent='Выберите подземелье на карте.';return}
-let info=document.createElement('p');info.textContent='Комната '+(d.room+1)+' · Герои '+state.squad.alive+' · Останки '+state.squad.remains+' · Трофеи '+state.squad.loot;box.append(info);
+let info=document.createElement('p');info.textContent='Комната '+(d.room+1)+' · Герои '+state.squad.alive+' · Останки '+state.squad.remains+' · Трофеи '+state.squad.loot+' · Снаряжение '+state.squad.gear;box.append(info);
 const add=(label,fn)=>box.append(btn(label,fn));
 if(d.room===0){box.append(document.createTextNode('Развилка: выбирайте один маршрут. Возвращаться нельзя.'));add('Путь ловушек',()=>room(1));add('Путь стражей',()=>room(2))}
 else if(d.room===1||d.room===2){box.append(document.createTextNode(d.room===1?'Старинные ловушки преграждают дорогу.':'Зал охраняют чудовища.'));add('Пройти испытание',()=>trial())}
 else if(d.room===3){box.append(document.createTextNode('Комната сокровищ. Можно забрать находку или идти дальше.'));if(!d.tile.treasureTaken)add('Забрать сокровища',()=>{d.tile.treasureTaken=true;state.squad.loot++;log('Найдена добыча. При гибели она останется в комнате гибели.');dungeonUI();render()});add('К главной цели',()=>room(4))}
-else if(d.room===4){box.append(document.createTextNode('Финальное испытание: победить хранителя артефакта.'));add('Сразиться с хранителем',()=>{if(Math.random()<.7){d.tile.cleared=true;state.gold+=20;log('Главная цель выполнена! Подземелье зачищено, +20 монет. Отряд автоматически эвакуирован.');state.dungeon=null;dungeonUI();render()}else deathOrWound()})}
-if(d.tile.remains>0){add('Забрать останки ('+d.tile.remains+')',()=>{state.squad.remains+=d.tile.remains;d.tile.remains=0;log('Останки забраны. Доступна мгновенная эвакуация.');dungeonUI();render()})}
+else if(d.room===4){box.append(document.createTextNode('Финальное испытание: победить хранителя артефакта.'));add('Сразиться с хранителем',()=>{if(Math.random()<.7){d.tile.cleared=true;state.gold+=20;state.squad.remains=0;log('Главная цель выполнена! Подземелье зачищено, +20 монет. Отряд автоматически эвакуирован.');state.dungeon=null;dungeonUI();render()}else deathOrWound()})}
+if(d.tile.remains>0){add('Забрать останки ('+d.tile.remains+')',()=>{state.squad.remains+=d.tile.remains;d.tile.remains=0;log('Останки забраны. Выход возможен только после выполнения главной цели.');dungeonUI();render()})}
 if(d.tile.droppedLoot>0)add('Подобрать оставленную добычу ('+d.tile.droppedLoot+')',()=>{state.squad.loot+=d.tile.droppedLoot;d.tile.droppedLoot=0;log('Подобрана оставленная добыча. Это само по себе не разрешает выход.');dungeonUI();render()});
-if(state.squad.remains>0)add('Эвакуироваться с останками',()=>{log('Спасательная эвакуация: останки доставлены из подземелья.');state.squad.remains=0;state.dungeon=null;dungeonUI();render()});
+if(d.tile.remains>0&&d.tile.corpseGear>0)add('Снять с останков снаряжение',()=>{state.squad.gear+=d.tile.corpseGear;log('С останков снято снаряжение: '+d.tile.corpseGear+'. Для выхода требуется выполнить главную цель.');d.tile.corpseGear=0;dungeonUI();render()});
 }
 function room(n){state.dungeon.room=n;dungeonUI()}
 function trial(){if(Math.random()<.7){log('Испытание пройдено.');room(3)}else deathOrWound()}
-function deathOrWound(){let s=state.squad;s.alive-=Math.min(2,s.alive);if(s.alive<=0){let t=state.dungeon.tile;t.remains=(t.remains||0)+4+s.remains;t.droppedLoot=(t.droppedLoot||0)+s.loot;s.remains=0;s.loot=0;log('Отряд погиб. Останки и добыча остались внутри. Враги и ловушки восстановлены.');s.alive=4;s.q=0;s.r=0;s.mp=4;state.dungeon=null;selected=tile(0,0);dungeonUI();render()}else{log('Испытание не удалось: двое героев выбыли.');dungeonUI();render()}}
+function deathOrWound(){let s=state.squad;s.alive-=Math.min(2,s.alive);if(s.alive<=0){let t=state.dungeon.tile;t.remains=(t.remains||0)+4+s.remains;t.corpseGear=(t.corpseGear||0)+4;t.droppedLoot=(t.droppedLoot||0)+s.loot+s.gear;s.remains=0;s.loot=0;s.gear=0;log('Отряд погиб. Останки и добыча остались внутри. Враги и ловушки восстановлены.');s.alive=4;s.q=0;s.r=0;s.mp=4;state.dungeon=null;selected=tile(0,0);dungeonUI();render()}else{log('Испытание не удалось: двое героев выбыли.');dungeonUI();render()}}
 canvas.onclick=e=>{if(state.dungeon)return;const b=canvas.getBoundingClientRect(),x=(e.clientX-b.left)*canvas.width/b.width,y=(e.clientY-b.top)*canvas.height/b.height;let best=null,bestD=999;for(const t of Object.values(tiles)){let c=hexCenter(t),d=Math.hypot(c.x-x,c.y-y);if(d<bestD){bestD=d;best=t}}if(best&&bestD<R){selected=best;render()}};
 el('end').onclick=endTurn;el('restart').onclick=()=>{if(confirm('Создать новую карту? Текущий прогресс будет потерян.'))newGame()};
 newGame();
