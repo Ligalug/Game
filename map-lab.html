@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Туман и кости — лаборатория глобальной карты</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,Arial;background:#111923;color:#e9e8db}*{box-sizing:border-box}body{margin:0}header{padding:16px 22px;background:#1b2934;border-bottom:1px solid #3c5260}h1{font-size:22px;margin:0 0 5px}small,.muted{color:#a9bdc8}main{display:grid;grid-template-columns:minmax(350px,1fr) 330px;gap:15px;padding:16px;max-width:1350px;margin:auto}canvas{width:100%;background:#101b23;border:1px solid #40545e;border-radius:12px;touch-action:manipulation}section{background:#1c2a35;border:1px solid #354955;border-radius:12px;padding:14px;margin-bottom:12px}h2{font-size:16px;margin:0 0 12px}button{background:#385b67;color:white;border:1px solid #6a8b92;border-radius:7px;padding:9px 11px;cursor:pointer;margin:3px}button:hover{background:#487887}button:disabled{opacity:.35;cursor:not-allowed}.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}#log{max-height:230px;overflow:auto;font-size:13px;line-height:1.5}.note{font-size:13px;color:#b4c6cc}#mapwrap{position:relative}.legend{padding:9px;font-size:12px;color:#b7c9c9}.pill{display:inline-block;border:1px solid #59727c;padding:3px 7px;border-radius:12px;margin:3px;font-size:12px}@media(max-width:850px){main{grid-template-columns:1fr}canvas{max-height:70vh}}</style>
+<header><h1>Туман и кости · Лаборатория глобальной карты</h1><small>Играбельный вертикальный срез · экспериментальные параметры баланса, не утверждённые диздоком</small></header>
+<main><div><div class="stats" id="stats"></div><div id="mapwrap"><canvas id="map" width="900" height="670"></canvas></div><div class="legend">Нажми соседний гекс для перемещения. Зелёный — лес (2 ОД), серый — горы (3), болотный — топь (3), равнина (1). Скрытые гексы исследуются по мере приближения. 🏰 столица · ⛏ ресурс · ◆ подземелье · ⚔ враг.</div></div><aside>
+<section><h2>Отряд и ходы</h2><div id="squad"></div><button id="end">Завершить ход</button><button id="restart">Новая карта</button><p class="note">4 ОД за ход, максимум 8 с бонусами. В тесте работает один отряд; ходы трёх ИИ соперников пока имитируются.</p></section>
+<section><h2>Выбранный гекс</h2><div id="tile"></div><div id="actions"></div></section>
+<section><h2>Подземелье</h2><div id="dungeon">Выберите гекс с символом ◆ и войдите в подземелье.</div></section>
+<section><h2>Журнал</h2><div id="log"></div></section>
+</aside></main>
+<script>
+(()=>{
+"use strict";
+const canvas=document.getElementById('map'),ctx=canvas.getContext('2d');
+const W=10,H=8,R=34,X=65,Y=63,dx=Math.sqrt(3)*R,dy=1.5*R;
+const el=id=>document.getElementById(id);
+const key=(q,r)=>q+','+r;
+const dirs=[[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+const terrain={plain:{name:'Равнина',cost:1,color:'#667d65'},forest:{name:'Лес',cost:2,color:'#365e4c'},mountain:{name:'Горы',cost:3,color:'#67737b'},swamp:{name:'Болото',cost:3,color:'#5d6854'}};
+let tiles={},state,selected,logs=[];
+function rand(n){return Math.floor(Math.random()*n)}
+function dist(a,b){return (Math.abs(a.q-b.q)+Math.abs(a.r-b.r)+Math.abs(a.q+a.r-b.q-b.r))/2}
+function tile(q,r){return tiles[key(q,r)]}
+function log(s){logs.unshift('Ход '+state.turn+': '+s);logs=logs.slice(0,25)}
+function visible(t){return dist(t,state.squad)<=2||dist(t,{q:0,r:0})<=1}
+function reveal(){Object.values(tiles).forEach(t=>{if(visible(t))t.seen=true})}
+function newGame(){
+tiles={};logs=[];
+for(let q=0;q<W;q++)for(let r=0;r<H;r++){let z=Math.random(),kind=z<.17?'mountain':z<.38?'forest':z<.49?'swamp':'plain';tiles[key(q,r)]={q,r,kind,seen:false,point:null,building:null,warning:false,cleared:false}}
+tile(0,0).kind='plain';tile(1,0).kind='plain';tile(2,0).kind='plain';
+[[2,1],[5,1],[7,5]].forEach(([q,r])=>{tile(q,r).point='resource';tile(q,r).kind='plain'});
+[[3,3],[7,2],[8,6]].forEach(([q,r])=>{tile(q,r).point='dungeon';tile(q,r).kind='plain'});
+[[4,5],[6,4]].forEach(([q,r])=>{tile(q,r).point='enemy';tile(q,r).kind='plain'});
+state={turn:1,gold:40,ore:0,materials:12,squad:{q:0,r:0,mp:4,max:4,alive:4,remains:0,loot:0},dungeon:null};
+selected=tile(0,0);reveal();log('Начало экспедиции. Изучайте карту и добывайте ресурсы.');render()
+}
+function btn(label,fn,disabled=false){let b=document.createElement('button');b.textContent=label;b.disabled=disabled;b.onclick=fn;return b}
+function hexCenter(t){return {x:X+dx*(t.q+t.r/2),y:Y+dy*t.r}}
+function hexPath(t){const {x,y}=hexCenter(t);ctx.beginPath();for(let i=0;i<6;i++){let a=Math.PI/180*(60*i-30);let px=x+R*Math.cos(a),py=y+R*Math.sin(a);i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.closePath()}
+function draw(){
+ctx.clearRect(0,0,900,670);
+Object.values(tiles).forEach(t=>{
+const vis=visible(t);hexPath(t);ctx.fillStyle=t.seen?terrain[t.kind].color:'#202b35';ctx.fill();ctx.strokeStyle=selected===t?'#ffdc84':'#182630';ctx.lineWidth=selected===t?4:2;ctx.stroke();
+const {x,y}=hexCenter(t);if(!t.seen)return;ctx.fillStyle=vis?'#f7f5e7':'#b1bdc1';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='23px system-ui';
+let sym=t.point==='resource'?'⛏':t.point==='dungeon'?(t.cleared?'✓':'◆'):t.point==='enemy'?'⚔':'';
+if(t.q===0&&t.r===0)sym='♜';
+if(sym)ctx.fillText(sym,x,y);
+if(t.building){ctx.font='13px system-ui';ctx.fillText(t.building.enabled?'●':'○',x+17,y-19)}
+if(t.warning){ctx.fillStyle='#ff8080';ctx.font='bold 17px system-ui';ctx.fillText('!',x-19,y-18)}
+if(!vis){hexPath(t);ctx.fillStyle='rgba(9,18,28,.48)';ctx.fill()}
+});
+const s=state.squad,{x,y}=hexCenter(s);ctx.beginPath();ctx.arc(x,y+16,11,0,Math.PI*2);ctx.fillStyle='#ffe28c';ctx.fill();ctx.strokeStyle='#382e1a';ctx.stroke();ctx.fillStyle='#242b2b';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText(''+s.alive,x,y+16)
+}
+function render(){
+reveal();draw();
+el('stats').innerHTML='<span class="pill">Ход: '+state.turn+'</span><span class="pill">Монеты: '+state.gold+'</span><span class="pill">Руда: '+state.ore+'</span><span class="pill">Материалы: '+state.materials+'</span>';
+el('squad').textContent='Герои: '+state.squad.alive+'/4 · ОД: '+state.squad.mp+'/4 · Останки: '+state.squad.remains+' · Трофеи: '+state.squad.loot;
+el('end').disabled=!!state.dungeon;
+let t=selected;el('tile').textContent=t&&!t.seen?'Неизведанная территория':t?terrain[t.kind].name+' ['+t.q+','+t.r+']'+(t.point?' · '+({resource:'Месторождение',dungeon:'Подземелье',enemy:'Вражеский отряд'}[t.point])):''):'';
+let a=el('actions');a.replaceChildren();
+if(t&&t.seen&&!state.dungeon){
+let here=dist(t,state.squad)===0,adj=dist(t,state.squad)===1;
+if(adj)a.append(btn('Перейти ('+terrain[t.kind].cost+' ОД)',()=>move(t),state.squad.mp<terrain[t.kind].cost));
+if(here&&t.point==='resource'){
+if(!t.building)a.append(btn('Собрать руду',()=>{if(t.regrow&&state.turn<t.regrow){log('Месторождение ещё восстанавливается.')}else{state.ore+=2;t.regrow=state.turn+5;log('Собрано 2 руды. Следующий сбор через 5 ходов.')}render()}));
+if(!t.building)a.append(btn('Построить шахту (4 материала)',()=>{if(state.materials<4)return;state.materials-=4;t.building={owner:'player',enabled:true,ready:false,builder:true,finish:state.turn+1,toggles:0};log('Строительство шахты: завершится в начале следующего собственного хода, если отряд останется здесь.');render()},state.materials<4));
+if(t.building){let b=t.building;a.append(btn(b.enabled?'Отключить':'Включить',()=>{b.enabled=!b.enabled;b.toggles++;log('Состояние шахты изменено; эффект в следующем экономическом цикле.');render()},b.toggles>=1));a.append(btn('Снести (+2 материала)',()=>{state.materials+=2;t.building=null;log('Шахта снесена, возвращено 50% материалов.');render()}))}
+}
+if(here&&t.point==='dungeon'&&!t.cleared)a.append(btn('Войти в подземелье',()=>enterDungeon(t)));
+if(here&&t.point==='enemy')a.append(btn('Атаковать врага (тестовый бой)',()=>{if(!confirm('Начать бой?'))return;let success=Math.random()>.25;if(success){t.point=null;state.gold+=5;log('Победа над вражеским отрядом, +5 монет.')}else{state.squad.alive=Math.max(1,state.squad.alive-1);log('Отступление. Один герой выбыл из отряда.')}render()}));
+}
+el('log').innerHTML=logs.map(s=>'<div>• '+s+'</div>').join('');
+}
+function move(t){if(state.dungeon)return;const s=state.squad;if(dist(t,s)!==1)return;let cost=terrain[t.kind].cost;if(cost>s.mp)return;let old=tile(s.q,s.r);if(old.building&&!old.building.ready&&old.building.builder){old.building.builder=false;log('Стройка приостановлена: строитель покинул гекс.')}
+s.q=t.q;s.r=t.r;s.mp-=cost;
+if(t.building&&!t.building.ready&&!t.building.builder){t.building.builder=true;t.building.finish=state.turn+1;log('Строительство возобновлено; завершение в начале следующего хода.')}
+if(t.point==='dungeon'&&!t.cleared){s.mp=0;log('Вход в подземелье завершает перемещение отряда.')}
+if(t.point==='enemy')log('Враг на гексе. Для боя нажмите «Атаковать».');
+if(!t.seen&&Math.random()<.12){t.warning=true;log('Разведчики заметили признаки опасности!')}
+selected=t;render()}
+function endTurn(){
+state.turn++;const s=state.squad;s.mp=s.max;
+let built=0,active=[];
+Object.values(tiles).forEach(t=>{if(!t.building)return;let b=t.building;b.toggles=0;if(!b.ready&&b.builder&&b.finish<=state.turn){b.ready=true;built++;}if(b.ready&&b.enabled)active.push(b)});
+if(built)log('Завершено строительство: '+built+'.');
+let upkeep=active.length*3;if(state.gold>=upkeep){state.gold-=upkeep;state.ore+=active.length*2;if(active.length)log('Экономика: -'+upkeep+' монет, +'+(active.length*2)+' руды.')}else if(active.length)log('Недостаточно средств на содержание всех шахт: добыча остановлена, монеты сохранены.');
+render()
+}
+function enterDungeon(t){
+state.dungeon={tile:t,room:0,branch:0,carried:0,found:0,goal:4,visited:[],lootTaken:new Set(),mode:'normal'};
+log('Отряд вошёл в подземелье. Добровольный выход запрещён до завершения цели.');dungeonUI();render()
+}
+function dungeonUI(){
+const d=state.dungeon,box=el('dungeon');box.replaceChildren();if(!d){box.textContent='Выберите подземелье на карте.';return}
+let info=document.createElement('p');info.textContent='Комната '+(d.room+1)+' · Герои '+state.squad.alive+' · Останки '+state.squad.remains+' · Трофеи '+state.squad.loot;box.append(info);
+const add=(label,fn)=>box.append(btn(label,fn));
+if(d.room===0){box.append(document.createTextNode('Развилка: выбирайте один маршрут. Возвращаться нельзя.'));add('Путь ловушек',()=>room(1));add('Путь стражей',()=>room(2))}
+else if(d.room===1||d.room===2){box.append(document.createTextNode(d.room===1?'Старинные ловушки преграждают дорогу.':'Зал охраняют чудовища.'));add('Пройти испытание',()=>trial())}
+else if(d.room===3){box.append(document.createTextNode('Комната сокровищ. Можно забрать находку или идти дальше.'));if(!d.tile.treasureTaken)add('Забрать сокровища',()=>{d.tile.treasureTaken=true;state.squad.loot++;log('Найдена добыча. При гибели она останется в комнате гибели.');dungeonUI();render()});add('К главной цели',()=>room(4))}
+else if(d.room===4){box.append(document.createTextNode('Финальное испытание: победить хранителя артефакта.'));add('Сразиться с хранителем',()=>{if(Math.random()<.7){d.tile.cleared=true;state.gold+=20;log('Главная цель выполнена! Подземелье зачищено, +20 монет. Отряд автоматически эвакуирован.');state.dungeon=null;dungeonUI();render()}else deathOrWound()})}
+if(d.tile.remains>0){add('Забрать останки ('+d.tile.remains+')',()=>{state.squad.remains+=d.tile.remains;d.tile.remains=0;log('Останки забраны. Доступна мгновенная эвакуация.');dungeonUI();render()})}
+if(d.tile.droppedLoot>0)add('Подобрать оставленную добычу ('+d.tile.droppedLoot+')',()=>{state.squad.loot+=d.tile.droppedLoot;d.tile.droppedLoot=0;log('Подобрана оставленная добыча. Это само по себе не разрешает выход.');dungeonUI();render()});
+if(state.squad.remains>0)add('Эвакуироваться с останками',()=>{log('Спасательная эвакуация: останки доставлены из подземелья.');state.squad.remains=0;state.dungeon=null;dungeonUI();render()});
+}
+function room(n){state.dungeon.room=n;dungeonUI()}
+function trial(){if(Math.random()<.7){log('Испытание пройдено.');room(3)}else deathOrWound()}
+function deathOrWound(){let s=state.squad;s.alive-=Math.min(2,s.alive);if(s.alive<=0){let t=state.dungeon.tile;t.remains=(t.remains||0)+4+s.remains;t.droppedLoot=(t.droppedLoot||0)+s.loot;s.remains=0;s.loot=0;log('Отряд погиб. Останки и добыча остались внутри. Враги и ловушки восстановлены.');s.alive=4;s.q=0;s.r=0;s.mp=4;state.dungeon=null;selected=tile(0,0);dungeonUI();render()}else{log('Испытание не удалось: двое героев выбыли.');dungeonUI();render()}}
+canvas.onclick=e=>{if(state.dungeon)return;const b=canvas.getBoundingClientRect(),x=(e.clientX-b.left)*canvas.width/b.width,y=(e.clientY-b.top)*canvas.height/b.height;let best=null,bestD=999;for(const t of Object.values(tiles)){let c=hexCenter(t),d=Math.hypot(c.x-x,c.y-y);if(d<bestD){bestD=d;best=t}}if(best&&bestD<R){selected=best;render()}};
+el('end').onclick=endTurn;el('restart').onclick=()=>{if(confirm('Создать новую карту? Текущий прогресс будет потерян.'))newGame()};
+newGame();
+})();
+</script></html>
