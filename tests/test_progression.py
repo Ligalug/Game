@@ -18,16 +18,16 @@ with sync_playwright() as pw:
  p.goto(url);p.uncheck('#motion')
  assert p.evaluate('Lab.state.units[3].max===18&&Lab.state.units[3].barrier===12&&Lab.state.critChance===.1')
  ok('Mage has eighteen HP at level one while keeping the twelve-point barrier; criticals default to ten percent')
- result=p.evaluate("()=>{const u=Lab.state.units[0],t=Lab.state.units[4],d={name:'Крит',lo:10,hi:10,damage:'magic',undodgeable:true};t.hp=100;Lab.state.critChance=1;const f=Lab.damageForecast(u,t,d),r=Lab.hit(u,t,d);return {critical:r.critical,damage:r.damage,hp:t.hp,forecast:f.critHi,stress:t.stress}}")
+ result=p.evaluate("()=>{const u=Lab.state.units[0],t=Lab.state.units[4],d={name:'Крит',baseDamage:10,damage:'magic',undodgeable:true};t.hp=100;Lab.state.critChance=1;const f=Lab.damageForecast(u,t,d),r=Lab.hit(u,t,d);return {critical:r.critical,damage:r.damage,hp:t.hp,forecast:f.criticalDamage,stress:t.stress}}")
  assert result=={'critical':True,'damage':12,'hp':88,'forecast':12,'stress':10}
  p.fill('#critChance','0');p.dispatch_event('#critChance','change')
- result=p.evaluate("()=>{const u=Lab.state.units[0],t=Lab.state.units[4];return Lab.hit(u,t,{name:'Обычный',lo:10,hi:10,damage:'magic',undodgeable:true})}")
+ result=p.evaluate("()=>{const u=Lab.state.units[0],t=Lab.state.units[4];return Lab.hit(u,t,{name:'Обычный',baseDamage:10,damage:'magic',undodgeable:true})}")
  assert result['critical'] is False and result['damage']==8
  ok('Critical multiplier is applied before defense, matches forecast and increases stress; zero percent disables it')
  p.select_option('#playerLevel','5');p.select_option('#enemyLevel','3')
  assert p.evaluate('Lab.state.units[0].max===48&&Lab.state.units[3].max===26&&Lab.state.units[3].barrier===20&&Lab.state.units[4].max===40')
  p.select_option('#warriorSub','bastion');assert p.evaluate('Lab.defense(Lab.state.units[0],"piercing")')==48
- p.select_option('#warriorSub','berserker');assert p.evaluate('Lab.spec(Lab.state.units[0],"attack").lo')==11
+ p.select_option('#warriorSub','berserker');assert p.evaluate('Lab.spec(Lab.state.units[0],"attack").baseDamage')==12
  p.select_option('#archerSub','sniper');assert p.evaluate('Lab.spec(Lab.state.units[1],"attack").range')==8
  p.select_option('#squad','classic');p.select_option('#rogueSub','thief');assert abs(p.evaluate('Lab.stats(Lab.state.units[2]).dodge')-.35)<1e-8
  assert p.evaluate('Lab.state.units[2].stride')==2
@@ -48,13 +48,13 @@ with sync_playwright() as pw:
   assert p.evaluate('Lab.state.units.every(u=>u.ap>=0&&u.hp>=0)')
  ok('Seven creature groups have their own figures and take legal turns instead of masquerading as hero enemies')
  p.select_option('#enemyType','wolves');p.select_option('#playerLevel','1');p.select_option('#mageSub','base')
- result=p.evaluate("()=>{const u=Lab.state.units[4],v=Lab.state.units[5],t=Lab.state.units[0];Object.assign(u,{q:3,r:3});Object.assign(v,{q:3,r:2});const pack=Lab.spec(u,'attack',t).lo;v.q=12;v.r=0;return {pack,alone:Lab.spec(u,'attack',t).lo}}")
+ result=p.evaluate("()=>{const u=Lab.state.units[4],v=Lab.state.units[5],t=Lab.state.units[0];Object.assign(u,{q:3,r:3});Object.assign(v,{q:3,r:2});const pack=Lab.spec(u,'attack',t).baseDamage;v.q=12;v.r=0;return {pack,alone:Lab.spec(u,'attack',t).baseDamage}}")
  assert result['pack']-result['alone']==2
  p.select_option('#playerLevel','2');p.select_option('#enemyType','spiders')
  result=p.evaluate("()=>{const u=Lab.state.units[4],t=Lab.state.units[0];Object.assign(u,{q:4,r:3});Lab.state.side=1;const ok=Lab.apply(u,t,'web');return {ok,slow:t.slow}}")
  assert result=={'ok':True,'slow':1}
  p.select_option('#enemyType','undead');assert p.evaluate('Lab.defense(Lab.state.units[4],"piercing")>Lab.defense(Lab.state.units[4],"slashing")')
- p.evaluate("Lab.state.critChance=1;Lab.hit(Lab.state.units[0],Lab.state.units[4],{name:'Крит',lo:100,hi:100,damage:'magic',undodgeable:true})")
+ p.evaluate("Lab.state.critChance=1;Lab.hit(Lab.state.units[0],Lab.state.units[4],{name:'Крит',baseDamage:100,damage:'magic',undodgeable:true})")
  assert p.evaluate('Lab.state.units[4].stress===0&&Lab.state.units[5].stress===0')
  ok('Creature mechanics work: wolf pack damage, slowing web and skeleton resistance to piercing')
  p.select_option('#scenario','convoy');assert p.evaluate('Lab.state.enemyType')=='heroes'
@@ -90,7 +90,7 @@ with sync_playwright() as pw:
  p.click('[data-objective="deliverCargo"]')
  assert p.evaluate('Lab.state.units[0].evacuated&&!Lab.state.units[1].evacuated&&!Lab.state.units[1].carrying&&Lab.state.winner===null')
  ok('Carrier can deliver a casualty and return; final hero cannot silently abandon other downed allies')
- p.evaluate("Lab.reset('convoy');Object.assign(Lab.state.units[0],{q:4,r:5,hp:0,ap:0});Object.assign(Lab.state.units[1],{q:4,r:4});Lab.carryHero(Lab.state.units[1],'p0');Lab.hit(Lab.state.units[4],Lab.state.units[1],{name:'Удар',lo:1000,hi:1000,damage:'magic',undodgeable:true,noCrit:true});Lab.render()")
+ p.evaluate("Lab.reset('convoy');Object.assign(Lab.state.units[0],{q:4,r:5,hp:0,ap:0});Object.assign(Lab.state.units[1],{q:4,r:4});Lab.carryHero(Lab.state.units[1],'p0');Lab.hit(Lab.state.units[4],Lab.state.units[1],{name:'Удар',baseDamage:1000,damage:'magic',undodgeable:true,noCrit:true});Lab.render()")
  assert p.evaluate('!Lab.state.units[0].carriedBy&&!Lab.state.units[0].evacuated&&!Lab.state.units[1].carrying&&Lab.state.units[0].hp===0')
  ok('Falling carrier drops the casualty back onto the battlefield instead of granting extraction')
  # Complete representative high-level creature battles using legal actions.

@@ -86,7 +86,14 @@ with sync_playwright() as pw:
  p.evaluate('Game.state.factions[0].armies[0].mp=1;Game.render()');p.click('[data-a=site]')
  assert p.evaluate('Game.state.map[35].site.done&&Game.state.factions[0].bag.some(i=>i.kind==="artifact")')
  ok('Guarded ruins reveal their threat, require victory and then yield the artifact through exploration')
- p.evaluate('''()=>{Game.newGame(709);const a=Game.state.factions[0].armies[0];Game.startBattle(a,null,{kind:'ambush',family:'spiders',title:'Паучья засада',pos:a.pos});const b=Game.state.battle;b.field.cells.fill('ground');const spider=b.units.find(u=>u.monster==='spider'),hero=b.units.find(u=>u.cls==='warrior');spider.pos=18;hero.pos=19;hero.slash=-100;spider.ap=2;Game.attackBattle(spider,hero)}''')
+ assert p.evaluate('''()=>{
+   Game.newGame(709);
+   const a=Game.state.factions[0].armies[0];
+   Game.startBattle(a,null,{kind:'ambush',family:'spiders',title:'Паучья засада',pos:a.pos});
+   const b=Game.state.battle, spider=b.units.find(u=>u.monster==='spider'), hero=b.units.find(u=>u.cls==='warrior');
+   b.field.cells.fill('ground');b.side=spider.side;spider.pos=18;hero.pos=19;
+   return Game.attackBattle(spider,hero)&&hero.snaredUntil===b.round+1;
+ }''')
  assert p.evaluate('Game.bestiary.speed(Game.state.battle.units.find(u=>u.cls==="warrior"))')==1
  p.screenshot(path='/tmp/v07-spiders.png')
  p.evaluate('Game.state.battle.round+=2')
@@ -94,9 +101,31 @@ with sync_playwright() as pw:
  p.evaluate('''()=>{Game.newGame(710);const a=Game.state.factions[0].armies[0];Game.startBattle(a,null,{kind:'ambush',family:'wolves',title:'Волчья стая',pos:a.pos});const b=Game.state.battle;b.field.cells.fill('ground');const w=b.units.filter(u=>u.monster==='wolf'),hero=b.units.find(u=>u.side===0);w[0].pos=18;w[1].pos=10;hero.pos=19;}''')
  assert p.evaluate('''()=>{const b=Game.state.battle;return Game.bestiary.attackBonus(b.units.find(u=>u.monster==='wolf'),b.units.find(u=>u.side===0))}''')==2
  ok('Spider hits actually slow movement and expire; wolves receive their pack attack bonus')
- result=p.evaluate("""()=>{Game.newGame(711);const a=Game.state.factions[0].armies[0];Game.relations.adjust(a.heroes[0],a.heroes[1],2,'Спасение в бою');Game.startBattle(a,null,{kind:'ambush',family:'bandits',title:'Проверка прикрытия',pos:a.pos});const b=Game.state.battle;b.field.cells.fill('ground');b.side=b.human;const w=b.units.find(u=>u.cls==='warrior'),c=b.units.find(u=>u.cls==='acolyte'),enemy=b.units.find(u=>u.side===1);w.pos=9;c.pos=17;enemy.pos=18;enemy.range=4;enemy.atk=0;c.pierce=12;c.hp=c.max=100;Math.random=()=>.55;enemy.ap=2;Game.attackBattle(enemy,c);const exposed=c.hp<100;c.hp=100;w.ap=2;const supported=Game.relations.support(w,c);enemy.ap=2;Game.attackBattle(enemy,c);const covered=c.hp===100;Game.moveBattle(w,0);enemy.ap=2;Game.attackBattle(enemy,c);Math.random=()=>.5;return{exposed,supported,covered,uncoveredAfterMove:c.hp<100};}""")
- assert result=={'exposed':True,'supported':True,'covered':True,'uncoveredAfterMove':True}
- ok('Manual support changes the actual hit result and stops protecting when the friend moves away')
+ result=p.evaluate("""()=>{
+   Game.newGame(711);
+   const a=Game.state.factions[0].armies[0];
+   Game.relations.adjust(a.heroes[0],a.heroes[1],2,'Спасение в бою');
+   Game.startBattle(a,null,{kind:'ambush',family:'bandits',title:'Проверка прикрытия',pos:a.pos});
+   const b=Game.state.battle, [warrior,ally,enemy]=b.units;
+   b.field.cells.fill('ground');
+   warrior.pos=9;
+   Object.assign(ally,{pos:17,physicalArmor:0,hp:100,max:100});
+   Object.assign(enemy,{pos:18,damage:20});
+   function damage(){
+     b.side=1;ally.hp=100;enemy.ap=3;
+     if(!Game.attackBattle(enemy,ally))throw Error('Expected a legal physical attack');
+     return 100-ally.hp;
+   }
+   const exposed=damage();
+   b.side=0;warrior.ap=2;
+   const supported=Game.relations.support(warrior,ally);
+   const covered=damage();
+   b.side=0;
+   const moved=Game.moveBattle(warrior,1);
+   return {exposed,supported,covered,moved,uncoveredAfterMove:damage()};
+ }""")
+ assert result=={'exposed':20,'supported':True,'covered':19,'moved':True,'uncoveredAfterMove':20}
+ ok('Manual support reduces fixed physical damage while the friend stays adjacent')
  result=p.evaluate("""()=>{Game.newGame(712);const s=Game.state,a=s.factions[0].armies[0];a.pos=35;s.map[35].site={type:'camp',cleared:false};Game.startBattle(a,null,{kind:'camp',family:'bandits',title:'Старый бой',pos:35});const legacy=JSON.parse(JSON.stringify(s));for(const c of legacy.map)if(c.site)delete c.site.family;for(const v of legacy.villages)delete v.threatFamily;for(const u of legacy.battle.units)delete u.monster;delete legacy.battle.meta.family;legacy.factions[0].armies[0].conflict={first:a.heroes[0].id,second:a.heroes[1].id,created:1};const before=JSON.stringify(legacy.battle.units),loaded=Game.load(legacy);return{loaded,sameUnits:before===JSON.stringify(Game.state.battle.units),clearedTimer:!Game.state.factions[0].armies[0].conflict,family:Game.state.map[35].site.family};}""")
  assert result=={'loaded':True,'sameUnits':True,'clearedTimer':True,'family':'bandits'}
  ok('Legacy saves keep their current battle and remove only the old causeless calendar dispute')

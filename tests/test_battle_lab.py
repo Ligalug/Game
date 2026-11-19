@@ -38,17 +38,37 @@ with sync_playwright() as pw:
  result=p.evaluate("()=>{Lab.reset('cover');const u=Lab.state.units[0];Object.assign(u,{q:5,r:3});const normal=Lab.paths(u).get('6,3');u.slow=1;const slow=Lab.paths(u).get('6,3');return {normal:normal.cost,slow:slow.cost,rock:Lab.paths(u).has('7,3')}}")
  assert result=={'normal':2,'slow':3,'rock':False}
  ok('Mud and slowing spend extra steps; rocks remain impassable')
- result=p.evaluate("()=>{Lab.reset();const vals=[0,25,50,100,200].map(Lab.reduction),u=Lab.state.units[0],t=Lab.state.units[4];const damage={};for(const type of ['piercing','slashing','magic'])damage[type]=Lab.damageForecast(u,t,{lo:10,hi:10,damage:type}).lo;return {vals,damage}}")
+ result=p.evaluate("()=>{Lab.reset();const vals=[0,25,50,100,200].map(Lab.reduction),u=Lab.state.units[0],t=Lab.state.units[4];const damage={};for(const type of ['piercing','slashing','magic'])damage[type]=Lab.damageForecast(u,t,{baseDamage:10,damage:type}).normalDamage;return {vals,damage}}")
  assert result['damage']=={'piercing':7,'slashing':5,'magic':8}
  assert abs(result['vals'][1]-1/3)<1e-8 and result['vals'][2]==.5
  assert result['vals'][3]-result['vals'][2]>result['vals'][4]-result['vals'][3]>0
  ok('Three defenses mitigate their own damage type with diminishing percentage gains')
- result=p.evaluate('''()=>{const hits=[];for(let i=0;i<30;i++){Lab.reset();const u=Lab.state.units[i%4],t=Lab.state.units[4];Object.assign(t,{q:u.q+(Lab.spec(u,'attack').range>1?2:1),r:u.r});const f=Lab.forecast(u,t,'attack'),before=t.hp;Lab.state.seed=i*197;Lab.apply(u,t,'attack');hits.push(f.ok&&before-t.hp>=f.lo&&before-t.hp<=f.hi&&u.ap===2)}return hits.every(Boolean)}''')
+ result=p.evaluate('''()=>{const hits=[];for(let i=0;i<30;i++){Lab.reset();const u=Lab.state.units[i%4],t=Lab.state.units[4];Object.assign(t,{q:u.q+(Lab.spec(u,'attack').range>1?2:1),r:u.r});const f=Lab.forecast(u,t,'attack'),before=t.hp;Lab.state.seed=i*197;Lab.apply(u,t,'attack');hits.push(f.ok&&[f.normalDamage,f.blockedDamage].includes(before-t.hp)&&u.ap===2)}return hits.every(Boolean)}''')
  assert result
  p.evaluate("Lab.reset();Lab.guard(Lab.state.units[4]);Lab.state.units[0].q=12;Lab.render()")
  f=p.evaluate("Lab.forecast(Lab.state.units[0],Lab.state.units[4],'attack')")
  assert f['defense']==75 and not p.evaluate('Lab.guard(Lab.state.units[4])')
- ok('Real hits match typed forecasts; guarding adds twenty rating without stacking')
+ assert f['block']==1 and f['blockedDamage']<f['normalDamage']
+ result=p.evaluate('''() => {
+   const [u,,,,t]=Lab.state.units;
+   const forecast=Lab.forecast(u,t,'attack'), before=t.hp;
+   Lab.state.seed=0;
+   if(!Lab.apply(u,t,'attack')||t.hp!==before-forecast.blockedDamage||t.guardBlock)return false;
+   if(!Lab.apply(u,t,'attack')||t.hp!==before-forecast.blockedDamage-forecast.normalDamage)return false;
+   return Lab.state.blocks===1;
+ }''')
+ assert result
+ ok('Real hits match fixed forecasts, and defense prepares a single block on top of the armor')
+ result=p.evaluate('''() => {
+   Lab.reset('equal');
+   const u=Lab.state.units[0], t=Lab.state.units[5];
+   Object.assign(t,{q:u.q+1,r:u.r});
+   Lab.state.seed=2048;
+   const before=t.hp;
+   return Lab.apply(u,t,'break')&&t.hp===before&&!t.exposed&&u.ap===1&&Lab.state.dodges===1;
+ }''')
+ assert result
+ ok('Dodge avoids all damage and the attack debuff while the attacker spends the AP')
  p.evaluate("Lab.reset('cover')");p.click('[data-select="p1"]');p.click('[data-action="attack"]')
  assert p.locator('.range-clear').count()>0
  assert p.locator('[data-q="15"][data-r="9"]').get_attribute('data-range')==''
@@ -79,7 +99,7 @@ with sync_playwright() as pw:
  assert p.evaluate('Lab.state.round===2&&Lab.state.units[4].exposed===0&&Lab.state.units[0].cooldown===3')
  ok('Special costs and cooldowns remain valid; physical-defense debuff expires after target turn')
  p.select_option('#engineerSub','armorer');p.click('[data-select="p2"]');p.click('[data-action="powerarmor"]')
- assert p.evaluate('Lab.state.units[2].ap===1&&Lab.state.units[2].power===2&&Lab.defense(Lab.state.units[2],"piercing")===60&&Lab.spec(Lab.state.units[2],"attack").lo===7')
+ assert p.evaluate('Lab.state.units[2].ap===1&&Lab.state.units[2].power===2&&Lab.defense(Lab.state.units[2],"piercing")===60&&Lab.spec(Lab.state.units[2],"attack").baseDamage===8')
  assert not p.evaluate('Lab.activateArmor(Lab.state.units[2])')
  assert 'Бронник' in p.inner_text('#selected')
  ok('Armorer activates personal power armor, raises all defenses and damage, and cannot stack it')
@@ -115,7 +135,7 @@ with sync_playwright() as pw:
  copy.close();p.locator('summary').last.click()
  with p.expect_download() as dl:p.click('#report')
  result=json.loads(Path(dl.value.path()).read_text())
- assert result['version']=='0.8.8-lab'
+ assert result['version']=='0.8.8-lab' and result['combat']=='block-dodge' and 'blocks' in result
  ok('Standalone backup boots offline; exported report identifies updated version')
  p.goto(base);p.wait_for_function('Game.painter.ready');p.get_by_role('button',name='Пробный бой 4 на 4',exact=True).click()
  frame=p.frame_locator('#battleLabOverlay iframe');frame.locator('#phase').wait_for();p.locator('#battleLabOverlay > button').click()

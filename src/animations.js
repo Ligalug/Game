@@ -18,7 +18,16 @@ const FX=(()=>{
  function record(e){history.push({type:e.type,kind:e.kind,label:e.label,value:e.value,sides:e.sides,mode:e.mode,from:e.from,to:e.to});if(history.length>160)history.shift();}
  function complete(e){if(e.type==='move'){positions.set(key(e.mode,e.id),{pos:e.to});if(!queue.some(t=>t.type==='move'&&t.id===e.id&&t.mode===e.mode))positions.delete(key(e.mode,e.id));}if(e.type==='reveal')for(const p of e.cells)reveals.delete(p);if(e.target&&e.hpAfter!=null){health.set(key(e.battleId,e.target),e.hpAfter);if(!queue.some(t=>t.target===e.target&&t.battleId===e.battleId))health.delete(key(e.battleId,e.target));}}
  function paint(){if(typeof Painter==='undefined')return;if(current?.mode==='battle')Painter.battle();else Painter.draw();paintCity();}
- function frame(time){raf=0;if(!settings.enabled){finish();return;}if(!current&&queue.length){current=queue.shift();current.start=time;record(current);}if(!current){release();paint();return;}
+ function frame(time){
+   raf=0;
+   if(!settings.enabled){finish();return;}
+   // A map check can open combat before its result animation reaches the front of the queue.
+   if(UI.modal==='battle'){
+     if(current?.type==='dice'){current=null;$('dicePanel').hidden=true;}
+     while(queue[0]?.type==='dice')queue.shift();
+   }
+   if(!current&&queue.length){current=queue.shift();current.start=time;record(current);}
+   if(!current){release();paint();return;}
    current.p=Math.min(1,(time-current.start)/(current.duration/settings.speed));
    if(current.type==='dice')paintDie(current);
    const text=$('fxLabel');if(text)text.textContent=current.label||({move:'Перемещение',reveal:'Открываем местность',effect:'Действие',city:'Городское строительство'}[current.type]||'Анимация');
@@ -28,13 +37,16 @@ const FX=(()=>{
  }
  function finish(){if(raf)cancelAnimationFrame(raf);raf=0;queue.length=0;current=null;release();if(typeof Painter!=='undefined'){Painter.draw();if(S?.battle)Painter.battle();paintCity();}}
  function reset(){session++;muted=0;finish();history.length=0;}
- function roll(value,sides,options={}){const mode=options.mode||'battle';return add({type:'dice',mode,battleId:mode==='battle'?S?.battle?.id:null,value,sides,...options,duration:options.duration||1050});}
+ function roll(value,sides,options={}){return add({type:'dice',value,sides,...options,mode:'map',duration:options.duration||1050});}
  function move(mode,id,from,to,options={}){if(from===to||!usable(mode))return null;if(mode==='map'&&options.owner!==0&&(!visible(player(),from)||!visible(player(),to)))return null;
    const e=add({type:'move',mode,id,from,to,...options,duration:options.duration||620});if(e&&!positions.has(key(mode,id)))positions.set(key(mode,id),{pos:from,ghost:options.ghost});return e;
  }
  function reveal(cells){if(!cells.length||!usable('map'))return;const e=add({type:'reveal',mode:'map',cells:[...cells],label:'Туман отступает',duration:600});if(e)for(const p of cells)reveals.set(p,e);}
  function effect(kind,from,to,options={}){const mode=options.mode||'battle',b=mode==='battle'?S?.battle:null;const e=add({type:'effect',kind,mode,from,to,battleId:b?.id,...options,duration:options.duration||650});if(e&&e.target&&e.hpBefore!=null&&!health.has(key(e.battleId,e.target)))health.set(key(e.battleId,e.target),e.hpBefore);return e;}
- function impact(u,t,amount,type,critical=false){return effect(type,u.pos,t.pos,{actor:u.id,target:t.id,hpBefore:t.hp,hpAfter:t.hp,amount,critical,label:critical?'Критическое попадание':type==='miss'?'Промах':type==='magic'?'Магический болт':'Атака'});}
+ function impact(u,t,amount,type,{critical=false,defense=null}={}){
+   const label=defense==='dodge'?'Уклонение':defense==='block'?'Блок':critical?'Критическое попадание':type==='magic'?'Магический болт':'Атака';
+   return effect(type,u.pos,t.pos,{actor:u.id,target:t.id,hpBefore:t.hp,hpAfter:t.hp,amount,critical,defense,label});
+ }
  function city(plot,kind,label){return add({type:'city',mode:'map',plot,kind,label,duration:850});}
  function position(mode,id,pos,coord){const hold=positions.get(key(mode,id)),e=current?.type==='move'&&current.id===id&&current.mode===mode?current:null;if(e){const a=coord(e.from),b=coord(e.to),t=ease(e.p||0);return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,moving:true,walk:Math.sin((e.p||0)*Math.PI*4)*1.7,flip:b.x<a.x};}return{...coord(hold?.pos??pos),moving:false,walk:0};}
  function revealAlpha(p){const e=reveals.get(p);if(!e)return 1;return current===e?ease(e.p||0):0;}
@@ -49,12 +61,18 @@ const FX=(()=>{
    panel.dataset.result=rolling?'rolling':e.value===e.sides&&e.sides===20?'critical':e.value===1&&e.sides===20?'failure':e.success===false?'failure':'success';
  }
  function overlay(ctx,mode,coord){const e=current;if(!e||e.mode!==mode)return;if(e.type==='city'&&mode==='map'){const p=coord(e.plot),t=e.p||0;ctx.save();ctx.strokeStyle='#f0d58b';ctx.globalAlpha=1-t;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p.x,p.y,28+t*32,14+t*12,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#fae6a8';ctx.font='bold 13px Georgia';ctx.textAlign='center';ctx.fillText(e.label,p.x,p.y-24-t*20);ctx.restore();return;}if(e.type!=='effect'||e.kind==='summary')return;const p=e.p||0,from=coord(e.from),to=coord(e.to),x=to.x,y=to.y,alpha=1-p;ctx.save();ctx.lineWidth=2;ctx.textAlign='center';ctx.font='bold 14px Georgia';
-   if(['arrow','magic','slash','miss'].includes(e.kind)){
+   if(['arrow','magic','slash'].includes(e.kind)){
      const t=Math.min(1,p/.55),px=from.x+(to.x-from.x)*t,py=from.y+(to.y-from.y)*t-25;
      if(e.kind==='arrow'||e.kind==='magic'){
        ctx.strokeStyle=e.kind==='magic'?'#94d7ed':'#e9dbaf';ctx.fillStyle=e.kind==='magic'?'#bdebf9':'#e8dcae';ctx.beginPath();ctx.moveTo(px-(to.x-from.x)*.14,py-(to.y-from.y)*.14);ctx.lineTo(px,py);ctx.stroke();ctx.fillRect(px-2,py-2,4,4);
      }else{const u=Math.sin(Math.min(1,p/.65)*Math.PI);ctx.translate(from.x+(to.x-from.x)*u*.16,from.y+(to.y-from.y)*u*.16);ctx.strokeStyle='#e8dcbb';ctx.beginPath();ctx.moveTo(5-14*u,-45);ctx.lineTo(18,-15+12*u);ctx.stroke();ctx.translate(-(from.x+(to.x-from.x)*u*.16),-(from.y+(to.y-from.y)*u*.16));}
-     if(p>.45){ctx.globalAlpha=Math.max(0,1-(p-.45)/.55);ctx.fillStyle=e.critical?'#ffe195':e.kind==='miss'?'#e9ddbc':'#f3b293';const text=e.kind==='miss'?'Промах':`−${e.amount}`;ctx.fillText(text,x,y-48-(p-.45)*30);for(let k=0;k<8;k++){const a=k*Math.PI/4,r=6+(p-.45)*34;ctx.fillRect(x+Math.cos(a)*r,y-22+Math.sin(a)*r*.7,3,2);}}
+     if(p>.45){
+       ctx.globalAlpha=Math.max(0,1-(p-.45)/.55);
+       ctx.fillStyle=e.defense?'#bdebf9':e.critical?'#ffe195':'#f3b293';
+       const text=e.defense==='dodge'?'Уклонение':e.defense==='block'?`Блок · −${e.amount}`:`−${e.amount}`;
+       ctx.fillText(text,x,y-48-(p-.45)*30);
+       for(let k=0;k<8;k++){const a=k*Math.PI/4,r=6+(p-.45)*34;ctx.fillRect(x+Math.cos(a)*r,y-22+Math.sin(a)*r*.7,3,2);}
+     }
    }else{
      const colors={heal:'#b7e7a2',ward:'#a8daf0',curse:'#c5a0e3',guard:'#e8d58f',revive:'#ffe9a3',meditate:'#a9c8ef',surrender:'#efdeba',inspired:'#f7db7b',protect:'#c8dcb4',arrival:'#e4d194'};ctx.strokeStyle=colors[e.kind]||'#e7d6a4';ctx.fillStyle=ctx.strokeStyle;ctx.globalAlpha=.95*(1-p*.6);
      if(e.kind==='heal'||e.kind==='revive'||e.kind==='inspired')for(let k=0;k<5;k++){const yy=y-8-p*45+(k%3)*7,xx=x+(k-2)*8;ctx.fillRect(xx-1,yy-4,2,8);ctx.fillRect(xx-4,yy-1,8,2);}

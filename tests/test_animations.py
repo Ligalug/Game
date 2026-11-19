@@ -37,13 +37,23 @@ with sync_playwright() as p:
     page.screenshot(path='/tmp/v05-dice.png')
     page.keyboard.press('Space');assert not page.evaluate('Game.fx.busy')
     ok('Animated die lands on the actual value with modifier and difficulty; keyboard skip works')
-    page.evaluate('''()=>{Game.newGame(301);const a=Game.state.factions[0].armies[0];Game.startBattle(a,null,{kind:'ambush',title:'Проверка анимаций',pos:a.pos});Game.fx.finish();const b=Game.state.battle,u=b.units.find(u=>u.side===0&&u.cls==='warrior'),t=b.units.find(u=>u.side===1);u.pos=18;t.pos=19;u.ap=2;u.range=1;t.hp=t.max=100;t.ac=-100;Math.random=()=>.5;Game.attackBattle(u,t);}''')
-    page.wait_for_function("Game.fx.active?.type==='dice'")
-    assert page.evaluate('Game.fx.queue.some(e=>e.label==="Отдельный бросок урона")')
-    assert page.evaluate('Game.fx.queue.some(e=>e.type==="effect"&&e.kind==="slash")')
+    assert page.evaluate('''()=>{
+      Game.newGame(301);
+      const a=Game.state.factions[0].armies[0];
+      Game.startBattle(a,null,{kind:'ambush',family:'bandits',title:'Проверка анимаций',pos:a.pos});
+      if(Game.fx.busy)return false;
+      const b=Game.state.battle,u=b.units.find(u=>u.cls==='warrior'),t=b.units.find(u=>u.side===1);
+      Object.assign(u,{pos:18,damage:10});
+      Object.assign(t,{pos:19,hp:100,max:100,physicalArmor:0});
+      const random=Math.random;
+      Math.random=()=>.9;
+      try {return Game.attackBattle(u,t)&&t.hp===90;} finally {Math.random=random;}
+    }''')
+    page.wait_for_function("Game.fx.active?.kind==='slash'")
+    assert page.locator('#dicePanel').is_hidden()
     page.evaluate('Game.fx.configure({speed:4})');page.wait_for_function('!Game.fx.busy')
-    assert page.evaluate("Game.fx.history.filter(e=>e.type==='dice').map(e=>e.sides)")==[20,8]
-    ok('Real attack queues separate hit and damage dice followed by the impact')
+    assert page.evaluate("Game.fx.history.every(e=>e.type!=='dice')")
+    ok('Battle starts without initiative dice and a real attack plays only the impact')
     page.evaluate('''()=>{const b=Game.state.battle,u=b.units.find(u=>u.side===0&&u.cls==='acolyte'),t=b.units.find(u=>u.side===0&&u.cls==='warrior');u.pos=17;u.ap=2;t.hp=1;Game.fx.configure({speed:1});Game.spellBattle(u,t,'heal');Game.render();}''')
     page.wait_for_function("Game.fx.active?.kind==='heal'")
     assert page.evaluate('Game.fx.hp(Game.state.battle.units.find(u=>u.side===0&&u.cls===\'warrior\'))')==1
@@ -51,13 +61,24 @@ with sync_playwright() as p:
     page.evaluate('Game.fx.finish()')
     assert page.evaluate('Game.fx.hp(Game.state.battle.units.find(u=>u.side===0&&u.cls===\'warrior\'))')>1
     ok('Healing displays pre-impact HP, then resolves to the saved healed value')
+    assert page.evaluate('''() => {
+      Game.newGame(306);
+      const a=player().armies[0], random=Math.random;
+      Object.assign(S.map[35],{terrain:'plain',searched:false,site:null});
+      Math.random=()=>0;
+      try {return Game.moveTo(a,35)&&S.battle.meta.kind==='ambush';} finally {Math.random=random;}
+    }''')
+    page.wait_for_function('!Game.fx.busy')
+    assert page.locator('#dicePanel').is_hidden()
+    assert page.evaluate("Game.fx.history.some(e=>e.type==='move')&&Game.fx.history.every(e=>e.type!=='dice')")
+    ok('An ambush starts from map movement and the dice animation stays out of the battle window')
     page.evaluate('Game.newGame(302);Game.fx.configure({speed:1})')
     page.click('#nav [data-a=city]');page.click('[data-a=construct]')
     page.wait_for_function("Game.fx.active?.type==='city'")
     assert page.locator('.city-scaffold').count()>0
     page.wait_for_function('document.querySelectorAll(".fx-construction").length>0')
     page.screenshot(path='/tmp/v05-construction.png')
-    page.evaluate('Game.fx.finish();Game.state.factions[0].town.queue.progress=999;Game.tickFaction(Game.state.factions[0]);Game.renderCity()')
+    page.evaluate('Game.fx.finish();const f=Game.state.factions[0];f.town.projects[0].progress=f.town.projects[0].work;Game.tickFaction(f);Game.renderCity()')
     page.wait_for_function("Game.fx.active?.kind==='complete'")
     page.evaluate('Game.fx.finish()')
     ok('Construction has persistent scaffolding and distinct start and completion effects')
@@ -75,7 +96,7 @@ with sync_playwright() as p:
     page.evaluate('Game.clickBattle(25)')
     assert page.evaluate('Game.state.battle.units.map(u=>u.pos)')==before
     page.evaluate('Game.fx.finish();Game.fx.configure({autoDetail:true,speed:4});Game.autoBattle()')
-    assert page.evaluate("Game.fx.queue.some(e=>e.type==='dice')")
+    assert page.evaluate("Game.fx.queue.some(e=>e.type==='effect')&&Game.fx.queue.every(e=>e.type!=='dice')")
     page.wait_for_function('!Game.fx.busy',timeout=60000)
     ok('Tactical motion locks duplicate commands; detailed autobattle plays recorded actions')
     # Compare identical seeded gameplay with and without the presentation timeline.
@@ -85,7 +106,7 @@ with sync_playwright() as p:
     page.evaluate('Game.fx.configure({enabled:true,speed:4,autoDetail:false});Game.autoBattle()')
     assert page.evaluate("Game.fx.queue.every(e=>e.kind==='summary')")
     page.wait_for_function('!Game.fx.busy')
-    ok('Default autobattle stays brief instead of replaying every roll')
+    ok('Default autobattle stays brief instead of replaying every action')
     page.evaluate("Game.fx.roll(9,20,{mode:'map'});Game.fx.configure({enabled:false,speed:2})")
     assert not page.evaluate('Game.fx.busy')
     page.reload();page.wait_for_function('Game.painter.ready')

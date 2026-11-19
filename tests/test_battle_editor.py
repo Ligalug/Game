@@ -32,17 +32,17 @@ with sync_playwright() as pw:
  result=p.evaluate("()=>{Lab.reset();const mage=Lab.state.units[3],enemy=Lab.state.units[4],ally=Lab.state.units[0];Object.assign(enemy,{q:3,r:6});ally.hp=10;return {shot:Lab.check(mage,enemy,'attack'),heal:Lab.check(mage,ally,'heal'),plan:Lab.approach(mage,[enemy])}}")
  assert 'Рядом враг' in result['shot'] and result['heal']=='' and result['plan'] is not None
  ok('Engagement also blocks offensive magic while healing remains legal; escape path exists')
- result=p.evaluate("()=>{Lab.reset();const u=Lab.state.units[0],t=Lab.state.units[3],d={lo:10,hi:10,damage:'piercing',name:'Тест',undodgeable:true};const a=Lab.hit(u,t,d),after1={hp:t.hp,barrier:t.barrier},c=Lab.hit(u,t,d),after2={hp:t.hp,barrier:t.barrier};Lab.startSide(1);const enemyTurn=t.barrier;Lab.startSide(0);const ownTurn=t.barrier;for(let i=0;i<5;i++)Lab.startSide(0);return {a,c,after1,after2,enemyTurn,ownTurn,cap:t.barrier}}")
+ result=p.evaluate("()=>{Lab.reset();const u=Lab.state.units[0],t=Lab.state.units[3],d={baseDamage:10,damage:'piercing',name:'Тест',undodgeable:true};const a=Lab.hit(u,t,d),after1={hp:t.hp,barrier:t.barrier},c=Lab.hit(u,t,d),after2={hp:t.hp,barrier:t.barrier};Lab.startSide(1);const enemyTurn=t.barrier;Lab.startSide(0);const ownTurn=t.barrier;for(let i=0;i<5;i++)Lab.startSide(0);return {a,c,after1,after2,enemyTurn,ownTurn,cap:t.barrier}}")
  assert result['after1']=={'hp':18,'barrier':3} and result['after2']=={'hp':12,'barrier':0}
  assert result['enemyTurn']==0 and result['ownTurn']==4 and result['cap']==12
  ok('Mage barrier absorbs post-defense damage, regenerates only on own turns and caps at twelve')
- result=p.evaluate("()=>{Lab.reset();const u=Lab.state.units[0],t=Lab.state.units[3];Lab.hit(u,t,{lo:1000,hi:1000,damage:'piercing',name:'Тест',undodgeable:true});Lab.startSide(0);return {hp:t.hp,barrier:t.barrier,ap:t.ap}}")
+ result=p.evaluate("()=>{Lab.reset();const u=Lab.state.units[0],t=Lab.state.units[3];Lab.hit(u,t,{baseDamage:1000,damage:'piercing',name:'Тест',undodgeable:true});Lab.startSide(0);return {hp:t.hp,barrier:t.barrier,ap:t.ap}}")
  assert result=={'hp':0,'barrier':0,'ap':0}
  ok('Unconscious mage gains neither barrier nor actions')
  result=p.evaluate("()=>{let misses=0,hits=0;for(let i=0;i<40;i++){Lab.reset();const u=Lab.state.units[0],t=Lab.state.units[5];Object.assign(t,{q:3,r:3});Lab.state.seed=i*1000003;const before=t.hp;Lab.apply(u,t,'break');if(t.hp===before){misses++;if(t.exposed||u.ap!==1||u.cooldown!==3)throw Error('Miss caused a debuff or free action')}else hits++}return {misses,hits}}")
  assert 0<result['misses']<40 and result['hits']>0
- p.select_option('#squad','classic');p.click('[data-select="p2"]');assert 'уворот 25%' in p.inner_text('#stats')
- p.click('[data-select="p1"]');assert 'уворот 20%' in p.inner_text('#stats')
+ p.select_option('#squad','classic');p.click('[data-select="p2"]');assert 'уклонение 25%' in p.inner_text('#stats')
+ p.click('[data-select="p1"]');assert 'уклонение 20%' in p.inner_text('#stats')
  ok('Dodge genuinely avoids attacks and debuffs but still spends attacker AP and cooldown; percentages are visible')
  p.evaluate('Lab.reset()');assert p.locator('#board .hero-figure').count()==8
  assert p.locator('.hero-figure[data-class="warrior"] image.pixel-body').count()>0

@@ -2,13 +2,13 @@
 const TurnFlow=(()=>{
  function flow(){if(!S)return null;let t=S.turnFlow;if(!t||t.turn!==S.turn){const previous=t;S.turnFlow=t={turn:S.turn,decisions:{},incoming:previous?.incoming||[],collecting:!!previous?.collecting,report:previous?.report||null};}return t;}
  const signature=value=>JSON.stringify(value);
- function legalBuild(){const f=player();if(f.town.queue)return null;for(const p of f.town.plots)for(const [b,d]of Object.entries(BUILD))if(f.gold>=d.cost&&f.crystal>=(d.crystal||0)&&buildPreview(f,p,b).ok)return{plot:p,building:b};return null;}
+ function legalBuild(){const f=player();if(f.town.projects?.some(q=>!q.paused))return null;for(const p of f.town.plots)for(const [b,d]of Object.entries(BUILD))if(f.gold>=d.cost&&f.crystal>=(d.crystal||0)&&buildPreview(f,p,b).ok)return{plot:p,building:b};return null;}
  function canAct(a){if(a.escort||!living(a).length||a.mp<1)return false;const siege=S.sieges.find(s=>s.attacker===a.id);if(siege)return false;return nb(a.pos).some(p=>{const hostile=S.factions.some(f=>!f.dead&&f.id!==0&&f.city===p)||allArmies().some(t=>t.owner!==0&&t.pos===p&&living(t).length);return hostile||TERRAIN[cell(p).terrain].cost<=a.mp;})||['camp','ruin','event','village'].includes(cell(a.pos).site?.type);}
  function tasks(includeDeferred=false){if(!S||S.result||!S.factions.length)return[];const f=player(),t=flow(),out=[],add=(key,title,text,route,data,sig)=>out.push({key,title,text,route,data,sig:signature(sig)});
   for(const [i,a]of f.armies.entries()){
    if(canAct(a))add('army:'+a.id,`Отряд ${i+1} ждёт приказа`,`${a.mp} очков перемещения. Отдайте приказ или оставьте отряд на месте до следующего хода.`,'army',a.id,[a.pos,a.mp,a.heroes.map(h=>h.id)]);
    if(Relations.activeConflict(a)&&a.mp>0&&living(a).length)add('conflict:'+a.id,`Спор в отряде ${i+1}`,a.conflict.reason+' После трёх ходов без решения верность спорящих снижается.','conflict',a.id,a.conflict);
-   for(const h of a.heroes)if(a.pos===f.city&&h.talent&&availableSub(h,f).length)add('hero:'+h.id,`${h.name}: доступен подкласс`,'В городе доступно обучение и первое очко таланта.','hero',{army:a.id,hero:h.id},[h.level,h.sub,availableSub(h,f).map(([k])=>k)]);
+   for(const h of a.heroes)if(availableSub(h,f).length)add('hero:'+h.id,`${h.name}: доступен подкласс`,'Откройте карточку героя и выберите постоянный подкласс.','hero',{army:a.id,hero:h.id},[h.level,h.sub,availableSub(h,f).map(([k])=>k)]);
   }
   const build=legalBuild();if(build)add('build','Город не строит здание','Есть место и ресурсы для строительства. Выберите постройку или решите копить ресурсы.','build',build,[f.gold,f.crystal,f.town.plots,f.town.buildings]);
   const plot=Array.from({length:256},(_,p)=>p).find(p=>dist(f.city,p)===2&&!f.town.plots.includes(p)&&nb(p).some(j=>f.town.plots.includes(j)));

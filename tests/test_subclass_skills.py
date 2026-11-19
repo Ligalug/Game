@@ -57,9 +57,9 @@ with sync_playwright() as pw:
  assert p.evaluate('Lab.state.units[1].protected===2&&Lab.state.units[0].ap===0&&Lab.state.units[0].skillCD.shieldBash===3&&Lab.state.units[0].skillCD.coverAlly===3')
  ok('Bastion bash slows an enemy and a separate one-AP ally protection still works during bash cooldown')
  p.select_option('#warriorSub','berserker');p.click('[data-select="p0"]')
- before=p.evaluate("({d:Lab.spec(Lab.state.units[0],'attack').lo,r:Lab.defense(Lab.state.units[0],'piercing')})")
+ before=p.evaluate("({d:Lab.spec(Lab.state.units[0],'attack').baseDamage,r:Lab.defense(Lab.state.units[0],'piercing')})")
  p.click('[data-action="rage"]')
- after=p.evaluate("({d:Lab.spec(Lab.state.units[0],'attack').lo,r:Lab.defense(Lab.state.units[0],'piercing')})")
+ after=p.evaluate("({d:Lab.spec(Lab.state.units[0],'attack').baseDamage,r:Lab.defense(Lab.state.units[0],'piercing')})")
  assert after['d']==before['d']+3 and after['r']==before['r']-10
  assert p.locator('[data-action="rage"]').is_disabled()
  ok('Berserker rage changes actual damage and defense and cannot stack')
@@ -71,7 +71,8 @@ with sync_playwright() as pw:
  p.select_option('#archerSub','swift');p.click('[data-select="p1"]');p.evaluate("Object.assign(Lab.state.units[4],{q:4,r:4,hp:100});Lab.render()")
  f=p.evaluate("Lab.forecast(Lab.state.units[1],Lab.state.units[4],'doubleShot')")
  p.click('[data-action="doubleShot"]');p.locator('[data-q="4"][data-r="4"]').click()
- loss=p.evaluate('100-Lab.state.units[4].hp');assert f['lo']*2<=loss<=f['hi']*2
+ loss=p.evaluate('100-Lab.state.units[4].hp')
+ assert loss in {2*f['normalDamage'], f['normalDamage']+f['blockedDamage'], 2*f['blockedDamage']}
  p.click('[data-action="skirmishShot"]');p.locator('[data-q="4"][data-r="4"]').click()
  assert p.evaluate('Lab.state.units[1].ap===0&&Lab.state.units[1].stride===2')
  ok('Sniper shots have distinct reach and control; Swift performs two hits and earns movement from its other shot')
@@ -107,7 +108,7 @@ with sync_playwright() as pw:
  assert p.evaluate('Lab.state.units[3].hp')>before
  ok('Elementalist has area fire and slowing ice; Cultist curses and actually drains health')
  p.select_option('#mageSub','paladin');p.click('[data-select="p3"]');p.evaluate("Object.assign(Lab.state.units[4],{q:3,r:6,hp:100,type:'skeleton'});Lab.state.units[2].hp=1;Lab.render()")
- normal=p.evaluate("Lab.spec(Lab.state.units[3],'smite').lo");undead=p.evaluate("Lab.spec(Lab.state.units[3],'smite',Lab.state.units[4]).lo");assert undead==normal+4
+ normal=p.evaluate("Lab.spec(Lab.state.units[3],'smite').baseDamage");undead=p.evaluate("Lab.spec(Lab.state.units[3],'smite',Lab.state.units[4]).baseDamage");assert undead==normal+4
  p.click('[data-action="layHands"]');p.locator('[data-q="2"][data-r="5"]').click();assert p.evaluate('Lab.state.units[2].hp>1')
  ok('Paladin has adjacent healing and a melee magical strike with a real undead damage bonus')
  p.select_option('#playerLevel','1');p.select_option('#enemyType','wolves')
