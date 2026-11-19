@@ -55,7 +55,7 @@ with sync_playwright() as playwright:
       if(market.progress!==4 || t.projects[0].progress!==0)return false;
       const gold=f.gold;
       Capital.edit(f,market.plot,'cancel');
-      if(f.gold!==gold+26 || !Capital.edit(f,t.projects[0].plot,'pause'))return false;
+      if(f.gold!==gold+27 || !Capital.edit(f,t.projects[0].plot,'pause'))return false;
       if(!Capital.enqueue(f,t.plots[0],'market'))return false;
       if(Capital.enqueue(f,t.plots[2],'market'))return false;
       Capital.tick(f,24);
@@ -255,5 +255,58 @@ with sync_playwright() as playwright:
       return !a.heroes.some(h=>h.id===u.hero)&&S.remains.some(r=>r.hero.id===u.hero);
     }''')
     print('PASS personal death counter, revival in combat and permanent death')
+
+    assert page.evaluate("""() => {
+      Game.newGame(901);
+      const f=player(), t=f.town;
+      f.gold=10000;f.crystal=100;
+      if(!Capital.enqueue(f,f.city,'hall','hall')||!Capital.enqueue(f,f.city,'walls','walls'))return false;
+      if(t.projects.length!==2||new Set(t.projects.map(q=>q.uid)).size!==2)return false;
+      const walls=t.projects.find(q=>q.kind==='walls'), gold=f.gold;
+      walls.progress=6;
+      Capital.edit(f,walls.uid,'cancel');
+      return t.projects.length===1&&t.projects[0].kind==='hall'&&f.gold===gold+Math.ceil(80*18/24);
+    }""")
+    print('PASS hall and walls queue together; queue controls address projects by id; refunds round up')
+
+    assert page.evaluate("""() => {
+      Game.newGame(902);
+      const f=player(), t=f.town;
+      f.gold=10000;f.crystal=100;
+      t.buildings[t.plots[3]]='laboratory';
+      Capital.enqueue(f,t.plots[0],'market');
+      if(!Development.startCraft('potion'))return false;
+      const prod=Capital.economy(f).prod, before=t.projects[0].progress;
+      Game.tickFaction(f);
+      const spent=(t.projects[0]?.progress??BUILD.market.work)-before, craft=t.craft?.progress??Development.recipes.potion.work;
+      return spent===Math.min(prod,BUILD.market.work-before)&&spent+(t.craft?craft:0)<=prod;
+    }""")
+    print('PASS construction and workshop share one production pool instead of spending it twice')
+
+    assert page.evaluate("""() => {
+      Game.newGame(903);
+      const a=player().armies[0], h=a.heroes[0];
+      h.items=[{id:'keep-sword',name:'Меч',kind:'weapon'}];
+      Game.startBattle(a,null,{kind:'ambush',family:'wolves',pos:a.pos,title:'Гибель отряда'});
+      const b=S.battle;
+      for(const u of b.units.filter(u=>u.side===0)){u.hp=0;u.expired=true;}
+      b.over=1;
+      Game.finishBattle();
+      const r=S.remains.find(r=>r.hero.id===h.id);
+      return !!r&&r.hero.items.some(i=>i.id==='keep-sword');
+    }""")
+    print('PASS equipment stays with the remains after a defeat by monsters')
+
+    assert page.evaluate("""() => {
+      Game.newGame(904);
+      const f=player(), t=f.town, p=t.plots[2], a=f.armies[0], h=a.heroes.find(h=>h.cls==='warrior');
+      f.gold=10000;
+      Capital.enqueue(f,p,'plaza');Capital.tick(f,100);
+      a.heroes=a.heroes.filter(x=>x!==h);
+      (f.retreats??=[]).push({hero:h,turn:S.turn+3});
+      if(!Capital.buy(f,'warrior','attack')||!Capital.demolish(f,p))return false;
+      return h.classRanks.attack===1;
+    }""")
+    print('PASS a retreating hero keeps ranks bought while away after the building is demolished')
     assert not errors, errors
     print('PASS save/reload and no uncaught browser errors')

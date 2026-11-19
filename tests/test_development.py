@@ -18,11 +18,11 @@ with sync_playwright() as pw:
  p.goto(f'http://127.0.0.1:{server.server_port}');p.wait_for_function('Game.painter.ready')
  p.evaluate('Game.fx.configure({enabled:false});Math.random=()=>.5;Game.newGame(801)')
  result=p.evaluate('''()=>{const f=Game.state.factions[0],p=f.town.plots;return{knowledge:f.knowledge,base:Game.cityEffects(f).knowledge,classes:f.candidates.map(h=>h.cls),tower:Game.buildPreview(f,p[0],'tower').ok,forge:Game.buildPreview(f,p[0],'smithy').ok}}''')
- assert result=={'knowledge':0,'base':2,'classes':['warrior','rogue','archer','acolyte'],'tower':False,'forge':True}
+ assert result=={'knowledge':0,'base':2,'classes':['warrior','rogue','archer','acolyte','engineer'],'tower':False,'forge':True}
  ok('Knowledge is a separate resource; basic classes and smithy need no specialist buildings')
  p.evaluate('''()=>{const f=Game.state.factions[0];f.gold=1000;f.crystal=100;Game.ui.building='library';Game.ui.cityPlot=f.town.plots[0];Game.renderCity()}''')
- p.click('[data-a=construct]');assert p.evaluate('Game.state.factions[0].town.queue.id')=='library'
- p.evaluate('''()=>{const f=Game.state.factions[0];f.town.queue.progress=999;Game.tickFaction(f)}''')
+ p.click('[data-a=construct]');assert p.evaluate('Game.state.factions[0].town.projects[0].id')=='library'
+ p.evaluate('''()=>{const f=Game.state.factions[0];f.town.projects[0].progress=f.town.projects[0].work-1;Game.tickFaction(f)}''')
  assert p.evaluate('Game.cityEffects(Game.state.factions[0]).knowledge')==6
  result=p.evaluate('''()=>{const f=Game.state.factions[0],p=f.town.plots;const without=Game.buildPreview(f,p[0],'enchanting').ok;f.town.buildings[p[1]]='tower';return{without,valid:Game.buildPreview(f,p[0],'enchanting').ok,wrong:Game.buildPreview(f,p[2],'enchanting').ok};}''')
  assert result=={'without':False,'valid':True,'wrong':False}
@@ -31,9 +31,11 @@ with sync_playwright() as pw:
  assert p.evaluate('''()=>{const f=Game.state.factions[0],saved={...f.town.buildings},p=f.town.plots;f.town.buildings={[p[0]]:'academy',[p[1]]:'tower'};const ok=Game.buildPreview(f,p[2],'magicacademy').ok;f.town.buildings=saved;return ok}''')
  ok('UI construction works; prerequisite and correct replacement hex are checked; replacement keeps the library')
  result=p.evaluate('''()=>{const f=Game.state.factions[0],plots=f.town.plots;f.town.buildings[plots[2]]='plaza';f.town.buildings[plots[3]]='plaza';f.town.buildings[plots[4]]='range';f.town.buildings[plots[5]]='magicacademy';Game.development.initialize();return{candidates:f.candidates.map(h=>h.level),live:f.armies[0].heroes.map(h=>h.level)}}''')
- assert result=={'candidates':[2,1,2,2],'live':[1,1]}
+ # 1.0: the start level comes from bought recruit ranks of the class building, not from the building itself.
+ assert result=={'candidates':[1,1,1,1,1],'live':[1,1]}
  p.evaluate('Game.renderHire()');p.locator('[data-a=recruit]').first.click()
- assert p.evaluate('Game.state.factions[0].armies[0].heroes.at(-1).level')==2
+ # 1.0: without bought recruit ranks the new hero starts at level 1.
+ assert p.evaluate('Game.state.factions[0].armies[0].heroes.at(-1).level')==1
  ok('Training raises only matching candidates by one, never stacks, and the recruited hero keeps that level')
  result=p.evaluate('''()=>{const f=Game.state.factions[0],p=f.town.plots;f.town.buildings={};f.town.buildings[p[0]]='library';f.town.buildings[p[1]]='tower';f.town.buildings[p[2]]='kapish';const temple=Game.buildPreview(f,p[3],'temple').ok;f.town.buildings[p[2]]='cathedral08';const dark=Game.buildPreview(f,p[3],'kapish').ok;return{temple,dark,resurrection:Game.buildPreview(f,p[4],'shrine').ok}}''')
  assert result=={'temple':False,'dark':False,'resurrection':True}
@@ -61,7 +63,7 @@ with sync_playwright() as pw:
  ok('The learned spell appears in battle, can be aimed and applies its real effect with the correct mana cost')
  result=p.evaluate('''()=>{Game.newGame(803);const f=Game.state.factions[0],p=f.town.plots;f.gold=1000;f.crystal=50;f.town.buildings[p[0]]='library';f.town.buildings[p[1]]='tower';f.knowledge=100;const blocked=Game.development.startResearch('fire');f.town.buildings[p[2]]='power';const started=Game.development.startResearch('fire');Game.tickFaction(f);Game.tickFaction(f);const h=f.armies[0].heroes.find(h=>h.cls==='acolyte');Game.development.learn('fire',h.id,'bolt');return{blocked,started,learned:h.spells.includes('fire')}}''')
  assert result=={'blocked':False,'started':True,'learned':True}
- result=p.evaluate('''()=>{const a=Game.state.factions[0].armies[0];Game.startBattle(a,null,{kind:'ambush',family:'bandits',title:'Пламя',pos:a.pos});const b=Game.state.battle;b.field.cells.fill('ground');const u=b.units.find(u=>u.cls==='acolyte'),t=b.units.find(u=>u.side===1);u.pos=18;t.pos=19;t.ac=-100;t.hp=t.max=100;u.ap=2;u.mana=12;const ok=Game.spellBattle(u,t,'fire');return{ok,damage:100-t.hp,mana:u.mana}}''')
+ result=p.evaluate('''()=>{const a=Game.state.factions[0].armies[0];Game.startBattle(a,null,{kind:'ambush',family:'bandits',title:'Пламя',pos:a.pos});const b=Game.state.battle;b.field.cells.fill('ground');const u=b.units.find(u=>u.cls==='acolyte'),t=b.units.find(u=>u.side===1);/* 1.0: an adjacent enemy blocks ranged magic, so the target stands two hexes away */b.units.filter(v=>v.side===1&&v!==t).forEach((v,i)=>v.pos=47-i);u.pos=17;t.pos=19;t.ac=-100;t.hp=t.max=100;u.ap=2;u.mana=12;const ok=Game.spellBattle(u,t,'fire');return{ok,damage:100-t.hp,mana:u.mana}}''')
  assert result=={'ok':True,'damage':12,'mana':8},result
  ok('Research school gates are enforced and elemental magic deals its configured damage')
  p.evaluate('''()=>{Game.newGame(804);const f=Game.state.factions[0],p=f.town.plots,forge=p[0],near=p.find(i=>i!==forge&&Game.nb(forge).includes(i)),remaining=p.filter(i=>i!==forge&&i!==near);f.gold=1000;f.crystal=20;f.town.buildings[forge]='magicforge';f.town.buildings[near]='power';f.town.buildings[remaining[0]]='library';f.town.buildings[remaining[1]]='tower';}''')
@@ -78,7 +80,8 @@ with sync_playwright() as pw:
  p.evaluate('''()=>{Game.newGame(805);const f=Game.state.factions[0],p=f.town.plots;f.gold=1000;f.crystal=50;f.town.buildings[p[0]]='enchanting';f.town.buildings[p[1]]='tower';const item=f.armies[0].heroes[0].items[0];Game.development.startCraft('enchant','ward',item.id)}''')
  assert p.evaluate('Game.state.factions[0].armies[0].heroes[0].items.length')==0
  p.evaluate('''()=>{const f=Game.state.factions[0];Game.tickFaction(f);Game.tickFaction(f)}''')
- assert p.evaluate('Game.state.factions[0].bag.some(i=>i.enchantment==="ward")')
+ # 1.0 stores installed enchantments as a list.
+ assert p.evaluate('Game.state.factions[0].bag.some(i=>(i.enchantments||[]).includes("ward"))')
  assert not p.evaluate('''()=>{const f=Game.state.factions[0];return Game.development.startCraft('enchant','bolt',f.bag[0].id)}''')
  ok('Enchanting reserves an actual existing item, returns it to storage and prevents uncontrolled stacking of properties')
  p.evaluate('''()=>{Game.newGame(806);const f=Game.state.factions[0],p=f.town.plots;f.gold=1000;f.crystal=50;f.town.buildings[p[0]]='laboratory';f.town.buildings[p[1]]='library';Game.development.startCraft('potion');Game.tickFaction(f);Game.tickFaction(f);Game.development.equip(f.bag.find(i=>i.kind==='potion').id,f.armies[0].heroes[0].id);const a=f.armies[0];a.pos=35;Game.startBattle(a,null,{kind:'ambush',family:'bandits',title:'Зелье в походе',pos:a.pos});const u=Game.state.battle.units.find(u=>u.cls==='warrior');u.hp=5;u.ap=2;Game.ui.battleSelected=u.id;Game.render()}''')

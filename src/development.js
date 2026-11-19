@@ -63,7 +63,9 @@ const Development=(()=>{
    const d=recipes[c.key];
    if(d&&lineage(f.town.buildings[c.plot]).includes(d.building)&&(d.kind!=='enchant'||enchantable(f,c.reserved,c.spell))){
      c.paused=false;
-     c.progress+=Capital.economy(f).prod;
+     // Construction is paid first; only the remainder of this turn's production reaches the workshop.
+     c.progress+=Math.max(0,f.town.spare??Capital.economy(f).prod);
+     f.town.spare=0;
      if(c.progress>=d.work)finishCraft(f);
    }else if(!c.paused){
      c.paused=true;

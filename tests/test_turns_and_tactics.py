@@ -23,7 +23,7 @@ with sync_playwright() as pw:
  p.locator('[data-a=turnDefer][data-id^="army:"]').click()
  assert p.evaluate('Game.state.factions[0].armies[0].mp')==5
  p.click('[data-a=turnGo][data-id=build]');p.click('[data-a=construct]')
- assert p.evaluate('Game.state.factions[0].town.queue!==null')
+ assert p.evaluate('Game.state.factions[0].town.projects.length>0')
  p.click('[data-a=close]');p.click('#endTurn')
  assert p.locator('[data-a=turnDefer]').count()==1
  gold=p.evaluate('Game.state.factions[0].gold');p.click('[data-a=turnDefer][data-id=decree]')
@@ -38,12 +38,12 @@ with sync_playwright() as pw:
  p.evaluate('Game.turns.allDeferred();Game.save()')
  result=p.evaluate('''()=>{const before=JSON.stringify(Game.state);Game.load();return before===JSON.stringify(Game.state)}''')
  assert result
- p.evaluate('''()=>{const f=Game.state.factions[0];f.gold=0;f.crystal=0;f.town.queue=null;for(const a of f.armies)a.mp=0;Game.render()}''')
+ p.evaluate('''()=>{const f=Game.state.factions[0];f.gold=0;f.crystal=0;f.town.projects=[];for(const a of f.armies)a.mp=0;Game.render()}''')
  assert not p.evaluate('Game.turns.tasks().some(t=>t.key==="build")')
  p.evaluate('Game.state.factions[0].gold=100;Game.render()')
  assert p.evaluate('Game.turns.tasks().some(t=>t.key==="build")')
  ok('Deferrals persist in saves; unavailable construction never blocks; newly available actions are rechecked')
- p.evaluate('''()=>{Game.newGame(201);const s=Game.state,f=s.factions[0];s.turn=2;s.decree.deadline=2;Game.relations.adjust(f.armies[0].heroes[0],f.armies[0].heroes[1],-2,'Спор из-за подарков деревне');f.gold=30;f.town.queue={plot:f.town.plots[0],id:'market',progress:999};f.town.wallQueue={type:'stone',left:1};f.town.growth=999;Game.makeConvoy(f,f.city,'bodies',[Game.createHero('archer',2)]);Game.turns.allDeferred();}''')
+ p.evaluate('''()=>{Game.newGame(201);const s=Game.state,f=s.factions[0];s.turn=2;s.decree.deadline=2;Game.relations.adjust(f.armies[0].heroes[0],f.armies[0].heroes[1],-2,'Спор из-за подарков деревне');f.gold=30;f.town.projects=[{uid:'q-test',id:'market',plot:f.town.plots[0],kind:'build',gold:35,crystal:0,work:16,progress:15}];f.town.wallQueue={type:'stone',left:1};f.town.growth=999;Game.makeConvoy(f,f.city,'bodies',[Game.createHero('archer',2)]);Game.turns.allDeferred();}''')
  p.evaluate('Game.endTurn()');p.wait_for_function('Game.state.turn===3&&Game.ui.modal==="turnReport"')
  kinds=p.evaluate('Game.state.turnFlow.report.items.map(v=>v.kind)')
  for kind in ['building','growth','king','event','convoy','income']:assert kind in kinds,kinds
@@ -56,7 +56,7 @@ with sync_playwright() as pw:
  assert not p.evaluate('Game.state.turnFlow.report.pending')
  assert p.evaluate('Game.ui.modal')=='king'
  ok('Start-of-turn report covers completed buildings, walls, growth, decrees, new events and wagon arrivals; survives reload')
- p.evaluate('''()=>{Game.newGame(203);Game.fx.configure({enabled:true,speed:4});const f=Game.state.factions[0];f.town.queue={plot:f.town.plots[0],id:'market',progress:999};Game.turns.allDeferred()}''')
+ p.evaluate('''()=>{Game.newGame(203);Game.fx.configure({enabled:true,speed:4});const f=Game.state.factions[0];f.town.projects=[{uid:'q-test',id:'market',plot:f.town.plots[0],kind:'build',gold:35,crystal:0,work:16,progress:15}];Game.turns.allDeferred()}''')
  p.evaluate('Game.endTurn()')
  assert p.evaluate('Game.state.turn')==2
  assert p.evaluate('Game.fx.busy')
@@ -70,8 +70,10 @@ with sync_playwright() as pw:
  assert result
  ok('All six landscapes have obstacles, cover and difficult terrain; deployment and connecting paths remain open')
  p.evaluate('''()=>{Game.newGame(2026);const a=Game.state.factions[0].armies[0];Game.startBattle(a,null,{kind:'ambush',title:'Лесная засада',pos:a.pos});const b=Game.state.battle;b.field={terrain:'forest',cells:Array(48).fill('ground')};b.side=b.human;const u=b.units.find(u=>u.cls==='warrior');u.pos=9;u.speed=2;u.ap=2;b.field.cells[10]='marsh';}''')
+ # 1.0: every hero moves up to 3 steps per AP; a snare removes one step, so a marsh (cost 3) is out of reach.
+ p.evaluate('Game.state.battle.units.find(u=>u.cls==="warrior").snaredUntil=Game.state.battle.round')
  assert not p.evaluate('Game.battleReach(Game.state.battle.units.find(u=>u.cls==="warrior")).has(10)')
- p.evaluate('Game.state.battle.units.find(u=>u.cls==="warrior").speed=3')
+ p.evaluate('Game.state.battle.units.find(u=>u.cls==="warrior").snaredUntil=0')
  assert p.evaluate('Game.battleReach(Game.state.battle.units.find(u=>u.cls==="warrior")).get(10)')==3
  p.evaluate('Game.state.battle.field.cells[10]="rock"')
  assert not p.evaluate('Game.moveBattle(Game.state.battle.units.find(u=>u.cls==="warrior"),10)')
@@ -79,7 +81,7 @@ with sync_playwright() as pw:
  p.evaluate('''()=>{const b=Game.state.battle,u=b.units.find(u=>u.side===0&&u.cls==='acolyte'),t=b.units.find(u=>u.side===1);u.pos=9;u.ap=2;u.mana=12;t.pos=13;b.field.cells[10]='ground';b.field.cells[11]='tree';}''')
  result=p.evaluate('''()=>{const b=Game.state.battle,u=b.units.find(u=>u.cls==='acolyte'),t=b.units.find(u=>u.side===1),before=u.mana;return{cast:Game.spellBattle(u,t,'bolt'),same:u.mana===before,sight:Game.tactics.sight(u.pos,t.pos)}}''')
  assert result=={'cast':False,'same':True,'sight':False}
- result=p.evaluate('''()=>{const b=Game.state.battle,u=b.units.find(u=>u.cls==='warrior'),t=b.units.find(u=>u.side===1);b.field.cells.fill('ground');u.pos=9;u.range=4;u.atk=0;u.ap=2;t.pos=13;t.pierce=10;t.guard=false;t.wardUntil=0;u.curseUntil=0;t.hp=t.max=100;b.field.cells[13]='bush';Math.random=()=>.45;const protectedHP=t.hp;Game.attackBattle(u,t);const missed=t.hp===protectedHP;u.ap=2;b.field.cells[13]='ground';Game.attackBattle(u,t);return{missed,hit:t.hp<protectedHP};}''')
+ result=p.evaluate('''()=>{const b=Game.state.battle,u=b.units.find(u=>u.cls==='warrior'),t=b.units.find(u=>u.side===1);b.field.cells.fill('ground');u.pos=9;u.range=4;u.atk=0;u.ap=2;t.pos=13;t.pierce=10;t.guard=false;t.wardUntil=0;u.curseUntil=0;t.hp=t.max=100;b.field.cells[13]='bush';Math.random=()=>.58;const protectedHP=t.hp;Game.attackBattle(u,t);const missed=t.hp===protectedHP;u.ap=2;b.field.cells[13]='ground';Game.attackBattle(u,t);return{missed,hit:t.hp<protectedHP};}''')
  assert result=={'missed':True,'hit':True}
  ok('Trees block projectiles and spells without spending mana; cover changes the actual hit result')
  p.evaluate('''()=>{const b=Game.state.battle;b.field=Game.tactics.generate('forest',34);const u=b.units.find(u=>u.cls==='acolyte');u.ap=2;u.mana=12;Game.ui.battleSelected=u.id;Game.render();}''')

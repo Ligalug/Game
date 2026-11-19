@@ -1,9 +1,10 @@
+import os
 """Regression: enemies keep an attack position instead of spending AP/stride shuffling."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[1]
 with sync_playwright() as pw:
- b=pw.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox'])
+ b=pw.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),args=['--no-sandbox'])
  p=b.new_page();errors=[];p.on('pageerror',lambda e:errors.append(str(e)));p.set_content((ROOT/'battle-lab.html').read_text());p.uncheck('#motion')
  def setup(kind='warrior',q=5,r=3):
   p.evaluate('''({kind,q,r})=>{Lab.reset('equal');for(const t of Object.values(Lab.state.tiles)){t.kind='plain';t.height=0}for(const u of Lab.state.units){u.hp=0;u.ap=0;u.stride=0}const a=Lab.state.units[0],e=Lab.state.units[4];Object.assign(a,{q:2,r:3,hp:1000,max:1000});Object.assign(e,{type:kind,sub:'base',q,r,hp:1000,max:1000,heals:0,cooldown:100,skillCD:{},stress:0});Lab.state.critChance=0;Lab.render()}''',{'kind':kind,'q':q,'r':r})

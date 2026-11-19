@@ -25,7 +25,7 @@ with sync_playwright() as p:
     page.goto(f'http://127.0.0.1:{server.server_port}')
     page.evaluate('Game.fx.configure({enabled:false})')
     page.click('[data-a=start]')
-    assert page.locator('[data-a=pickStart]').count()==8
+    assert page.locator('[data-a=pickStart]').count()==10
     page.locator('[data-a=pickStart]').nth(0).click();page.locator('[data-a=pickStart]').nth(3).click()
     page.click('[data-a=confirmStart]')
     page.click('[data-a=turnReportDone]')
@@ -44,7 +44,7 @@ with sync_playwright() as p:
     assert page.locator('.citymap polygon').count()==19
     assert page.evaluate('Game.state.factions[0].town.plots.length')==6
     page.click('[data-a=construct]')
-    assert page.evaluate('Game.state.factions[0].town.queue.id')=='market'
+    assert page.evaluate('Game.state.factions[0].town.projects[0].id')=='market'
     assert page.evaluate('Game.state.factions[0].gold')==60
     ok('Six initial building plots plus twelve outer plots; building charges resources through UI')
     result=page.evaluate('''()=>{Game.newGame(124);const f=Game.state.factions[0],p=f.town.plots;f.town.buildings[p[0]]='market';const near=p.find(j=>j!==p[0]&&Game.nb(p[0]).includes(j)),far=p.find(j=>j!==p[0]&&!Game.nb(p[0]).includes(j));return{near:Game.buildPreview(f,near,'workshop'),far:Game.buildPreview(f,far,'workshop'),wrong:Game.buildPreview(f,near,'trading'),valid:Game.buildPreview(f,p[0],'trading')};}''')
@@ -79,23 +79,27 @@ with sync_playwright() as p:
     result=page.evaluate('''()=>{Game.newGame(128);Math.random=()=>.95;const a=Game.state.factions[0].armies[0];Game.startBattle(a,null,{kind:'ambush',title:'Лечение',pos:a.pos});const b=Game.state.battle,w=b.units.find(u=>u.side===0&&u.cls==='warrior'),h=b.units.find(u=>u.side===0&&u.cls==='acolyte');w.hp=0;w.pos=9;h.pos=17;h.ap=2;const healed=Game.spellBattle(h,w,'heal'),ap=w.ap;w.hp=0;b.over=0;Game.finishBattle();return{healed,ap,hp:a.heroes.find(t=>t.cls==='warrior').hp};}''')
     assert result=={'healed':True,'ap':1,'hp':1}
     ok('Healing raises a hero with one AP; victory revives all friendly knockouts at one HP')
-    result=page.evaluate('''()=>{Game.newGame(129);const f=Game.state.factions[0],e=Game.state.factions[1],a=f.armies[0],d=e.armies[0];Math.random=()=>0;Game.startBattle(a,d,{kind:'duel',title:'Стресс',pos:a.pos});const b=Game.state.battle,u=b.units.find(u=>u.side===1&&u.hero);u.stress=95;Game.stressUnit(u,10,'Испытание');return{surrender:u.surrender,active:Game.activeUnits(b,1).some(v=>v.id===u.id)};}''')
+    result=page.evaluate('''()=>{Game.newGame(129);const f=Game.state.factions[0],e=Game.state.factions[1],a=f.armies[0],d=e.armies[0];Math.random=()=>.99;Game.startBattle(a,d,{kind:'duel',title:'Стресс',pos:a.pos});const b=Game.state.battle,u=b.units.find(u=>u.side===1&&u.hero);u.stress=95;Game.stressUnit(u,10,'Испытание');return{surrender:u.surrender,active:Game.activeUnits(b,1).some(v=>v.id===u.id)};}''')
     assert result=={'surrender':True,'active':False}
     ok('A failed resolve check causes surrender and removes the hero from active combat')
-    # A genuine post-battle flow through the interface: trophies, remains, prisoners, shipping.
-    page.evaluate('''()=>{Game.newGame(130);Math.random=()=>.95;const f=Game.state.factions[0],e=Game.state.factions[1],a=f.armies[0],d=e.armies[0];f.town.buildings[f.town.plots[0]]='prison';d.pos=35;Game.startBattle(a,d,{kind:'duel',title:'Поле боя',pos:35});const b=Game.state.battle,en=b.units.filter(u=>u.side===1);en[0].hp=0;en[1].surrender=true;b.over=0;Game.finishBattle();}''')
-    assert page.evaluate('Game.state.factions[0].bag.length')==2
+    # 1.0 post-battle flow through the interface: execute or recruit downed enemies, shared loot, remains wagon.
+    page.evaluate('''()=>{Game.newGame(130);Math.random=()=>.95;const f=Game.state.factions[0],e=Game.state.factions[1],a=f.armies[0],d=e.armies[0];d.pos=35;d.heroes.forEach((h,i)=>h.items=[{id:'loot'+i,name:'Трофей '+i,kind:'weapon'}]);Game.startBattle(a,d,{kind:'duel',title:'Поле боя',pos:35});const b=Game.state.battle,en=b.units.filter(u=>u.side===1);en[0].hp=0;en[1].hp=0;b.over=0;Game.finishBattle();}''')
+    assert page.evaluate('Game.state.aftermath.eligible.length')==2
+    page.click('[data-a=aftermathFate][data-v=hire] >> nth=0')
+    page.click('[data-a=aftermathFate]:not([data-v]) >> nth=0')
     assert page.evaluate('Game.state.aftermath.corpses.length')==1
-    assert page.evaluate('Game.state.aftermath.captives.length')==1
+    assert page.evaluate('Game.state.aftermath.loot.length')==1
+    assert page.evaluate('Game.state.factions[0].armies.flatMap(a=>a.heroes).some(h=>h.items.some(i=>i.id==="loot0"))')
     page.click('[data-a=aftermathBodies]')
     assert 'Маршрут' in page.locator('#modal').inner_text() and 'Примерное время' in page.locator('#modal').inner_text()
-    page.click('[data-a=confirmShipping]');page.click('[data-a=aftermathCapture]');page.click('[data-a=aftermathDone]')
-    assert page.evaluate('Game.state.convoys.map(c=>c.kind).sort()')==['bodies','prisoners']
+    page.click('[data-a=confirmShipping]');page.click('[data-a=aftermathDone]')
+    assert page.evaluate('Game.state.factions[0].bag.some(i=>i.id==="loot1")')
+    assert page.evaluate('Game.state.convoys.map(c=>c.kind)')==['bodies']
     assert page.evaluate('Game.state.factions[0].armies[0].pos')==35
-    ok('Winner takes all enemy items; bodies and live prisoners dispatch as separate interceptable wagons')
-    result=page.evaluate('''()=>{const s=Game.state,a=s.factions[0].armies[0],c=s.convoys.find(c=>c.kind==='bodies');const escort=Game.escortConvoy(c.id,a.id);Math.random=()=>.5;Game.tickConvoys();return{escort,convoys:s.convoys.length,bodies:s.factions[0].morgue.length,prison:s.factions[0].prison.length,items:s.factions[0].prison[0].items.length};}''')
-    assert result=={'escort':True,'convoys':0,'bodies':1,'prison':1,'items':0}
-    ok('Escort moves with the wagon; arrivals populate morgue and unlimited prison without restoring items')
+    ok('Downed enemies are recruited or executed; the gear of the executed hero becomes shared loot; remains travel by wagon')
+    result=page.evaluate('''()=>{const s=Game.state,a=s.factions[0].armies[0],c=s.convoys.find(c=>c.kind==='bodies');const escort=Game.escortConvoy(c.id,a.id);Math.random=()=>.5;for(let i=0;i<20&&s.convoys.length;i++)Game.tickConvoys();return{escort,convoys:s.convoys.length,bodies:s.factions[0].morgue.length}}''')
+    assert result=={'escort':True,'convoys':0,'bodies':1}
+    ok('Escort moves with the wagon; arrival delivers the remains to the morgue')
     result=page.evaluate('''()=>{const f=Game.state.factions[0],h=f.morgue[0];f.gold=500;f.crystal=30;f.town.buildings[f.town.plots[1]]='resurrection';const before=f.gold,blocked=Game.revive(h.id)===false,bodyKept=f.morgue.length===1;const priest=Game.createHero('acolyte',8);priest.sub='highpriest';Game.createArmy(f,f.city,[priest]);const level=h.level,revived=Game.revive(h.id);return{blocked,bodyKept,uncharged:before===500,revived,level:h.level,expected:level,loyalty:h.loyalty,weak:h.weak};}''')
     assert result['blocked'] and result['bodyKept'] and result['revived']
     assert result['level']==result['expected']==1 and result['loyalty']==15 and result['weak']==2
@@ -126,7 +130,7 @@ with sync_playwright() as p:
     page.evaluate('Game.newGame(200)')
     for _ in range(100):
         if page.evaluate('!!Game.state.result'):break
-        page.evaluate('''async()=>{const s=Game.state;if(s.battle){Game.autoBattle();Game.finishBattle();}else if(s.aftermath){const m=s.aftermath;if(m.corpses.length)Game.dispatchBodies(s.factions[0],m.pos,m.corpses);if(m.captives.length){const f=s.factions[0];f.town.buildings[f.town.plots[0]]='prison';Game.dispatchCaptives(f,m.pos,m.captives);}s.aftermath=null;Game.closeModal();Game.after();}else {if(s.turnFlow?.report?.pending)Game.turns.dismiss();Game.turns.allDeferred();await Game.endTurn();}}''')
+        page.evaluate('''async()=>{const s=Game.state;if(s.battle){Game.autoBattle();Game.finishBattle();}else if(s.aftermath){const m=s.aftermath;for(const h of [...(m.eligible||[])])Game.battleRules.fate(m,h,false);if(m.corpses.length)Game.dispatchBodies(s.factions[0],m.pos,m.corpses);Game.battleRules.stash(m);s.aftermath=null;Game.closeModal();Game.after();}else {if(s.turnFlow?.report?.pending)Game.turns.dismiss();Game.turns.allDeferred();await Game.endTurn();}}''')
         page.wait_for_timeout(45)
     assert page.evaluate('!!Game.state.result')
     assert page.evaluate('Game.state.factions.slice(1).some(f=>f.rep!==0||f.kills>0)')

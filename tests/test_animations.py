@@ -112,6 +112,20 @@ with sync_playwright() as p:
     page.reload();page.wait_for_function('Game.painter.ready')
     assert page.evaluate('Game.fx.settings')=={'enabled':False,'speed':2,'autoDetail':False}
     ok('Disabling immediately unlocks controls; speed and preferences persist after reload')
+    # Presentation poses: lunge, recoil, flash, fall, camera shake for criticals and rising after healing.
+    page.evaluate("""()=>{Game.newGame(4242);Game.fx.configure({enabled:true,speed:1,autoDetail:false});const a=player().armies[0];Game.startBattle(a,null,{kind:'ambush',family:'goblins',title:'Позы',pos:a.pos});Game.fx.finish();const b=S.battle;b.field.cells.fill('ground');b.side=0;const w=b.units.find(u=>u.cls==='warrior'),e=b.units.filter(u=>u.side===1);w.pos=18;e[0].pos=19;e.slice(1).forEach((v,i)=>v.pos=46-i);e[0].hp=3;const r=Math.random;Math.random=()=>.95;try{Game.attackBattle(w,e[0]);}finally{Math.random=r;}}""")
+    page.wait_for_function("(()=>{const b=Game.state.battle,u=b.units.find(u=>u.cls==='warrior'),p=Game.fx.pose(u);return p&&p.lunge>.3})()")
+    page.wait_for_function("(()=>{const t=Game.state.battle.units.find(u=>u.side===1),p=Game.fx.pose(t);return p&&p.flash>0&&p.fall>0})()")
+    assert page.evaluate('Game.state.battle.units.find(u=>u.side===1).hp')==0
+    page.evaluate('Game.fx.finish()')
+    assert page.evaluate('Game.state.battle.units.every(u=>Game.fx.pose(u)===null)')
+    page.evaluate("""()=>{const b=S.battle,m=b.units.find(u=>u.cls==='acolyte'),t=b.units.filter(u=>u.side===1)[1];b.side=0;m.pos=17;m.ap=3;m.mana=12;t.pos=20;t.hp=t.max=100;let n=0;const r=Math.random;Math.random=()=>[.99,.05][Math.min(1,n++)];try{Game.attackBattle(m,t,false,false,'fire');}finally{Math.random=r;}}""")
+    page.wait_for_function("Game.fx.active?.critical&&Game.fx.active.school==='fire'&&Math.abs(Game.fx.shake().x)+Math.abs(Game.fx.shake().y)>0")
+    page.evaluate('Game.fx.finish()')
+    page.evaluate("""()=>{const b=S.battle,m=b.units.find(u=>u.cls==='acolyte'),w=b.units.find(u=>u.cls==='warrior');b.side=0;w.hp=0;w.pos=9;m.pos=17;m.ap=2;m.mana=12;Game.spellBattle(m,w,'heal');}""")
+    page.wait_for_function("(()=>{const w=Game.state.battle.units.find(u=>u.cls==='warrior'),p=Game.fx.pose(w);return p&&p.rise>0})()")
+    page.evaluate('Game.fx.finish()')
+    ok('Battle poses: attacker lunges, target flashes and falls, criticals shake the camera, healing raises a downed hero')
     reduced=browser.new_context(reduced_motion='reduce')
     rp=reduced.new_page();rp.goto(url)
     assert not rp.evaluate('Game.fx.settings.enabled')

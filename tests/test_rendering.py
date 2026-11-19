@@ -1,3 +1,4 @@
+import os
 """Native pixel rendering and real map/battle input at multiple display scales."""
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
@@ -11,7 +12,7 @@ server=ThreadingHTTPServer(('127.0.0.1',0),partial(Quiet,directory=str(ROOT)));T
 url=f'http://127.0.0.1:{server.server_port}/'
 out=Path('/tmp/tik-rendering-checks');out.mkdir(exist_ok=True)
 with sync_playwright() as p:
- b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-webgl'])
+ b=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox','--disable-webgl'])
  for dpr in [1,1.25,2]:
   c=b.new_context(device_scale_factor=dpr,viewport={'width':1500,'height':1000});pg=c.new_page();errors=[];pg.on('pageerror',lambda e:errors.append(str(e)))
   pg.goto(url);pg.wait_for_function('Game.painter.ready');pg.evaluate('Game.fx.configure({enabled:false});Game.newGame(2026)')

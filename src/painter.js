@@ -58,10 +58,32 @@ const Painter=(()=>{
   if(t.cover)label(ctx,`${t.cost>1?'×'+t.cost+' · ':''}КБ +${t.cover}`,p.x,p.y+29,'#d8e6b7',6);
   else if(t.cost>1)label(ctx,`×${t.cost}${t.height?' · ↑':''}`,p.x,p.y+29,'#ebd49a',6);
   ctx.restore();}
- function battle(){const cv=$('battleCanvas'),b=S?.battle;if(!cv||!b)return;if(battleHoverId!==b.id){battleHover=null;battleHoverId=b.id;}const{w,h,ctx}=surface(cv),field=Tactics.field(),z=Math.min(w/(SQ*R*8+65),h/(R*1.5*Y*6+65)),target={x:SQ*R*7.5/2,y:R*1.5*Y*5/2-12};battleCam={cv,z,target};ctx.fillStyle='#2c4330';ctx.fillRect(0,0,w,h);ctx.save();ctx.translate(w/2,h/2);ctx.scale(z,z);ctx.translate(-target.x,-target.y);const selected=b.units.find(u=>u.id===UI.battleSelected),reach=selected&&selected.ap>0&&!selected.surrender?battleReach(selected):new Map(),base=field.terrain==='forest'?'plain':field.terrain==='river'?'plain':field.terrain;
+ // One battle figure with presentation poses from FX.pose(); never changes game state.
+ const easeIn=t=>t*t*(3-2*t),idHash=id=>[...String(id)].reduce((n,c)=>n+c.charCodeAt(0),0);
+ function spriteOf(u){return u.cls?u.cls==='acolyte'?(u.hero?.charCodeAt(u.hero.length-1)%2?11:12):C[u.cls].sprite:u.range>1?10:13;}
+ function drawUnit(ctx,u,b){
+  const base=FX.position('battle',u.id,u.pos,i=>wp(i,8)),visualHP=FX.hp(u),ps=FX.pose(u),flip=base.moving?base.flip:u.side!==b.human,phase=base.moving?(FX.active?.p||0)*Math.PI*4:null,height=u.monster==='ogre'?72:58;
+  let x=base.x,y=base.y;
+  if(ps&&ps.from!=null&&ps.to!=null){const a=wp(ps.from,8),c=wp(ps.to,8),len=Math.hypot(c.x-a.x,c.y-a.y)||1,dx=(c.x-a.x)/len,dy=(c.y-a.y)/len,reach=Math.min(26,len*.35);
+   if(ps.lunge){x+=dx*reach*ps.lunge;y+=dy*reach*ps.lunge;}
+   if(ps.recoil){x-=dx*5*ps.recoil;y-=dy*5*ps.recoil;}
+   if(ps.dodge){x-=dy*18*ps.dodge;y+=dx*9*ps.dodge;}
+   if(ps.knock){x+=dx*6*ps.knock;y+=dy*6*ps.knock;}
+   if(ps.shake)x+=ps.shake;}
+  const breathe=!base.moving&&!ps&&visualHP>0&&FX.settings.enabled?Math.sin(performance.now()/520+idHash(u.id))*.9:0;
+  const figure=(fx,fy)=>u.monster?monster(ctx,u.monster,fx,fy,height,flip,phase):walker(ctx,spriteOf(u),fx,fy,height,flip,phase);
+  let lying=visualHP<=0?1:0;if(ps?.fall!=null)lying=ps.fall;if(ps?.rise!=null)lying=1-ps.rise;
+  if(lying>0){ctx.save();ctx.globalAlpha=u.expired?.4:.85;shadow(ctx,x,y+14,20);ctx.translate(x,y+14);ctx.rotate((flip?1:-1)*Math.PI/2*easeIn(lying));figure(0,0);ctx.restore();}
+  else{shadow(ctx,x,y+14);figure(x,y+14-Math.max(0,breathe));}
+  if(ps?.flash){ctx.save();ctx.globalAlpha=ps.flash*.5;ctx.fillStyle=ps.crit?'#fff1b8':'#ffffff';ctx.beginPath();ctx.ellipse(x,y-14,17,30,0,0,Math.PI*2);ctx.fill();ctx.restore();}
+  if(ps?.shield){ctx.save();ctx.globalAlpha=ps.shield;const sx=x+(flip?14:-14),sy=y-26;ctx.fillStyle='#d8c27a';ctx.strokeStyle='#5c4a1f';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx-9,sy-11);ctx.lineTo(sx+9,sy-11);ctx.lineTo(sx+9,sy+2);ctx.quadraticCurveTo(sx,sy+13,sx,sy+13);ctx.quadraticCurveTo(sx-9,sy+8,sx-9,sy+2);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}
+  if(u.id===UI.battleSelected){ctx.strokeStyle='#edca78';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y+14,24,9,0,0,Math.PI*2);ctx.stroke();}
+  if(visualHP>0&&lying<1){ctx.fillStyle='#27382c';ctx.fillRect(x-18,y+21,36,4);ctx.fillStyle=u.side===b.human?'#a6c788':'#ca8d77';ctx.fillRect(x-18,y+21,36*visualHP/u.max,4);}
+ }
+ function battle(){const cv=$('battleCanvas'),b=S?.battle;if(!cv||!b)return;if(battleHoverId!==b.id){battleHover=null;battleHoverId=b.id;}const{w,h,ctx}=surface(cv),field=Tactics.field(),z=Math.min(w/(SQ*R*8+65),h/(R*1.5*Y*6+65)),target={x:SQ*R*7.5/2,y:R*1.5*Y*5/2-12};battleCam={cv,z,target};ctx.fillStyle='#2c4330';ctx.fillRect(0,0,w,h);const quake=FX.shake();ctx.save();ctx.translate(w/2+quake.x,h/2+quake.y);ctx.scale(z,z);ctx.translate(-target.x,-target.y);const selected=b.units.find(u=>u.id===UI.battleSelected),reach=selected&&selected.ap>0&&!selected.surrender?battleReach(selected):new Map(),base=field.terrain==='forest'?'plain':field.terrain==='river'?'plain':field.terrain;
   for(let i=0;i<48;i++){const p=wp(i,8),t=Tactics.tile(i);terrain(ctx,base,p,i);if(reach.has(i)){ctx.fillStyle='#b9cb8d25';ctx.beginPath();poly(ctx,p,R-1);ctx.fill();}if(grid||reach.has(i)||t.blocked){ctx.strokeStyle=t.blocked?'#bf9f6a66':reach.has(i)?'#b7c388':'#b1b58835';ctx.lineWidth=1;ctx.beginPath();poly(ctx,p,R-1);ctx.stroke();}}
   const actors=b.units.filter(u=>!u.retreated).map(u=>({unit:u,y:wp(u.pos,8).y}));for(let i=0;i<48;i++)if(Tactics.tile(i).kind!=='ground')actors.push({tile:i,y:wp(i,8).y});actors.sort((a,b)=>a.y-b.y);
-  for(const actor of actors){if(actor.tile!=null){tacticalFeature(ctx,Tactics.tile(actor.tile),wp(actor.tile,8));continue;}const u=actor.unit,p=FX.position('battle',u.id,u.pos,i=>wp(i,8)),visualHP=FX.hp(u);if(visualHP<=0){ctx.fillStyle='#6f5140';ctx.fillRect(p.x-6,p.y,12,4);continue;}shadow(ctx,p.x,p.y+14);const n=u.cls?u.cls==='acolyte'?(u.hero?.charCodeAt(u.hero.length-1)%2?11:12):C[u.cls].sprite:u.range>1?10:13;u.monster?monster(ctx,u.monster,p.x,p.y+14,u.monster==='ogre'?72:58,p.moving?p.flip:u.side!==b.human,p.moving?(FX.active?.p||0)*Math.PI*4:null):walker(ctx,n,p.x,p.y+14,58,p.moving?p.flip:u.side!==b.human,p.moving?(FX.active?.p||0)*Math.PI*4:null);if(u.id===UI.battleSelected){ctx.strokeStyle='#edca78';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p.x,p.y+14,24,9,0,0,Math.PI*2);ctx.stroke();}ctx.fillStyle='#27382c';ctx.fillRect(p.x-18,p.y+21,36,4);ctx.fillStyle=u.side===b.human?'#a6c788':'#ca8d77';ctx.fillRect(p.x-18,p.y+21,36*visualHP/u.max,4);}
+  for(const actor of actors){if(actor.tile!=null){tacticalFeature(ctx,Tactics.tile(actor.tile),wp(actor.tile,8));continue;}drawUnit(ctx,actor.unit,b);}
   for(const u of b.units)if(FX.hp(u)>0){const p=FX.position('battle',u.id,u.pos,i=>wp(i,8));label(ctx,u.surrender?'Сдался':u.name,p.x,p.y-53,u.surrender?'#e5cc83':u.side===b.human?'#c9dfb2':'#e6aa92',9);}
   if(battleHover!=null){ctx.strokeStyle='#f2d28c';ctx.lineWidth=2;ctx.beginPath();poly(ctx,wp(battleHover,8),R-2);ctx.stroke();}
   FX.overlay(ctx,'battle',i=>wp(i,8));ctx.restore();
@@ -79,7 +101,9 @@ const Painter=(()=>{
  function control(k){if(k==='home')home();if(k==='in')zoom=clamp(zoom*1.25,.12,2);if(k==='out')zoom=clamp(zoom*.8,.12,2);if(k==='all'){focusPoint={x:SQ*R*15.5/2,y:R*1.5*Y*15/2};zoom=Math.min($('map').clientWidth/2/(SQ*R*17),$('map').clientHeight/2/(R*1.5*Y*18));}draw();}
  function project(pos,mode='map'){if(mode==='battle'&&battleCam){const {cv,z,target}=battleCam,r=cv.getBoundingClientRect(),p=wp(pos,8);return{x:r.left+2*(cv.clientWidth/4+(p.x-target.x)*z),y:r.top+2*(cv.clientHeight/4+(p.y-target.y)*z)};}const r=$('map').getBoundingClientRect(),p=wp(pos);return{x:r.left+2*($('map').clientWidth/4+(p.x-focusPoint.x)*zoom),y:r.top+2*($('map').clientHeight/4+(p.y-focusPoint.y)*zoom)};}
  let ambientFrames=0,ambientLast=0;
- function ambient(now){requestAnimationFrame(ambient);if(now-ambientLast<66||!ready||!S||document.hidden||UI.modal||S.battle||FX.busy||!FX.settings.enabled)return;ambientLast=now;ambientFrames++;draw();}
+ function ambient(now){requestAnimationFrame(ambient);
+  // Idle breathing on the open battlefield; presentation only.
+  if(ready&&S?.battle&&UI.modal==='battle'&&!document.hidden&&!FX.busy&&FX.settings.enabled&&now-ambientLast>=90){ambientLast=now;battle();return;}if(now-ambientLast<66||!ready||!S||document.hidden||UI.modal||S.battle||FX.busy||!FX.settings.enabled)return;ambientLast=now;ambientFrames++;draw();}
  requestAnimationFrame(ambient);
  img.onload=()=>{ready=true;draw();thumbnails();if(S?.battle)battle();};img.src=ATLAS_URL;window.addEventListener('resize',()=>{draw();if(S?.battle)battle();});
  return{draw,battle,thumbnails,monsterThumbnails,focus,home,control,project,grid(){grid=!grid;draw();if(S?.battle)battle();},get ready(){return ready;},get ambient(){return{frames:ambientFrames,enabled:FX.settings.enabled};}};

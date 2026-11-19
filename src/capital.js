@@ -49,13 +49,23 @@ const Capital = (() => {
     t.hall ??= 1;
     t.classRanks ??= {};
     t.facings ??= {};
+    // Stable identifiers: hall and walls share the capital plot, so the plot alone is ambiguous.
+    for(const q of t.projects) q.uid ??= id('q');
+  }
+
+  // Every hero who still belongs to the house: squads, retreating heroes, the morgue and own wagons.
+  function heroesOf(f) {
+    return [...f.armies.flatMap(a=>a.heroes),...(f.retreats||[]).map(r=>r.hero),...(f.morgue||[]),
+      ...S.convoys.filter(c=>c.owner===f.id&&c.kind!=='prisoners').flatMap(c=>c.cargo)];
   }
 
   function level(f, cls) { return f.town.classRanks?.[cls]?.floor || 1; }
   function project(f,p,key,kind) {
     init(f);
     const t=f.town, d=BUILD[key], old=t.buildings[p];
-    if (!d || t.projects.some(q=>q.plot===p)) return null;
+    // Hall and walls both sit on the capital plot and may be queued together; any other plot takes one project at a time.
+    const civic=k=>k==='hall'||k==='walls';
+    if (!d || t.projects.some(q=>q.plot===p&&!(civic(q.kind)&&civic(kind)&&q.kind!==kind))) return null;
     const cls=Object.keys(classes).find(c=>classes[c]===key);
     let next=1;
     if(['tavern2','tower2'].includes(key)&&t.hall<2) return null;
@@ -83,21 +93,26 @@ const Capital = (() => {
   function enqueue(f,p,key,kind='build') {
     const q=project(f,p,key,kind);
     if(!q||!pay(f,q.gold,q.crystal)) return false;
+    // The id is issued only for a real queued project: previews must not consume the serial counter.
+    q.uid=id('q');
     f.town.projects.push(q);
     if(f.id===0) FX.city(p,'start',BUILD[key].name+': в очереди');
     return true;
   }
 
-  function edit(f,p,action) {
+  // key: project uid (interface) or plot number (older callers and tests).
+  function edit(f,key,action) {
     init(f);
-    const list=f.town.projects, index=list.findIndex(q=>q.plot===p), q=list[index];
+    const list=f.town.projects, index=list.findIndex(q=>typeof key==='string'?q.uid===key:q.plot===key), q=list[index];
     if(!q) return false;
     if(action==='pause') q.paused=!q.paused;
     if(action==='first') list.unshift(list.splice(index,1)[0]);
     if(action==='cancel') {
       const left=q.work-q.progress;
-      f.gold+=Math.floor(q.gold*left/q.work);
-      f.crystal+=Math.floor(q.crystal*left/q.work);
+      // Design 2026-11-08: refund = ceil(paid × remaining share), never more than paid.
+      const refund=paid=>Math.min(paid,Math.ceil(paid*left/q.work-1e-9));
+      f.gold+=refund(q.gold);
+      f.crystal+=refund(q.crystal);
       list.splice(index,1);
     }
     return true;
@@ -120,6 +135,7 @@ const Capital = (() => {
     return {...e,due,paid,efficiency,losses};
   }
 
+  // Returns production left after the construction queue; crafting may use it.
   function tick(f,production) {
     init(f);
     const t=f.town;
@@ -146,6 +162,7 @@ const Capital = (() => {
       }
       log(f.name+': выполнено — '+BUILD[q.id].name+'.');
     }
+    return Math.max(0,production);
   }
 
   function bonuses(f,h) {
@@ -177,7 +194,7 @@ const Capital = (() => {
     const n=tree[key]||0;
     if(n>=limit||!pay(f,15+(n+1)*10+(branch?20:0))) return false;
     tree[key]=n+1;
-    for(const h of f.armies.flatMap(a=>a.heroes)) if(h.cls===cls) bonuses(f,h);
+    for(const h of heroesOf(f)) if(h.cls===cls) bonuses(f,h);
     Development.updateCandidates(f);
     return true;
   }
@@ -187,7 +204,7 @@ const Capital = (() => {
     if(!f.town.buildings[p]||f.town.projects.some(q=>q.plot===p)) return false;
     const cls=Object.keys(classes).find(c=>classes[c]===f.town.buildings[p]);
     if(cls) {
-      for(const h of f.armies.flatMap(a=>a.heroes)) if(h.cls===cls) bonuses(f,h);
+      for(const h of heroesOf(f)) if(h.cls===cls) bonuses(f,h);
       delete f.town.classRanks[cls];
     }
     delete f.town.buildings[p];
@@ -209,9 +226,9 @@ const Capital = (() => {
     init(f);
     const t=f.town, e=economy(f), key=t.buildings[p], cls=Object.keys(classes).find(c=>classes[c]===key);
     const rows=t.projects.map(q=>`<li><b>${BUILD[q.id].name}</b> · ${q.progress}/${q.work} ОП${q.paused?' · пауза':''}
-      ${button('capitalEdit',q.paused?'Возобновить':'Пауза',`data-pos="${q.plot}" data-v="pause"`)}
-      ${button('capitalEdit','В начало',`data-pos="${q.plot}" data-v="first"`)}
-      ${button('capitalEdit','Отменить',`data-pos="${q.plot}" data-v="cancel"`)}</li>`).join('');
+      ${button('capitalEdit',q.paused?'Возобновить':'Пауза',`data-id="${q.uid}" data-pos="${q.plot}" data-v="pause"`)}
+      ${button('capitalEdit','В начало',`data-id="${q.uid}" data-pos="${q.plot}" data-v="first"`)}
+      ${button('capitalEdit','Отменить',`data-id="${q.uid}" data-pos="${q.plot}" data-v="cancel"`)}</li>`).join('');
     const row=(k,name,max)=> {
       const rank=t.classRanks[cls]?.[k]||0, cost=25+rank*10+(k.includes(':')?20:0);
       return button('classBuy',`${name} · ${rank}/${max} · ${cost} зол.`,`data-id="${cls}" data-v="${k}"`,rank>=max||f.gold<cost);

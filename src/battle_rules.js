@@ -54,7 +54,7 @@ const BattleRules = (() => {
       else u.used=true;
     }
     if(dodged) {
-      FX.impact(u,t,0,type,{defense:'dodge'});
+      FX.impact(u,t,0,type,{defense:'dodge',school:magic?school:null});
       b.log.unshift(`${u.name} → ${t.name}: уклонение.`);
       return true;
     }
@@ -64,7 +64,7 @@ const BattleRules = (() => {
     const target={...t,physicalArmor:(t.physicalArmor??Math.max(0,(t.slash||10)-10)*3)+protection+(t.guard?10:0)+(t.friendCover&&activeUnits(b,t.side).some(u=>u.id===t.friendCover&&dist(u.pos,t.pos,8)===1)?5:0)+(t.wardUntil>=b.round?10:0)+(t.greaterWard>=b.round?15:0)};
     const dealt=damage([{type:magic?school:'physical',penetration:magic?(u.branch?.magicPen||0):(u.branch?.penetration||0),value:raw*(special&&u.cls==='warrior'?1.5:1)*(free?.75:1)}],target,critical,blocked);
     if(blocked) t.guardBlock=false;
-    const before=t.hp, effect=FX.impact(u,t,dealt,type,{critical,defense:blocked?'block':null});
+    const before=t.hp, effect=FX.impact(u,t,dealt,type,{critical,defense:blocked?'block':null,school:magic?school:null});
     damageUnit(t,dealt,critical,u);
     if(effect){effect.hpAfter=t.hp;effect.amount=before-t.hp;}
     b.log.unshift(`${u.name} → ${t.name}: ${before-t.hp} урона${critical?' · крит':''}${blocked?' · блок':''}.`);
@@ -141,8 +141,11 @@ const BattleRules = (() => {
   }
 
   function bury(m,h) {
-    m.loot.push(...h.items);
-    h.items=[];
+    // With a house as winner the gear becomes shared loot; after a defeat by monsters it stays with the remains.
+    if(m.winner!=null) {
+      m.loot.push(...h.items);
+      h.items=[];
+    }
     h.dead=true;
     const r={id:id('body'),pos:m.pos,hero:h,holder:m.winner??null};
     S.remains.push(r);

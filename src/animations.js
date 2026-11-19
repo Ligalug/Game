@@ -1,6 +1,7 @@
 // Transient presentation timeline. Never changes game state or consumes game RNG.
 const FX=(()=>{
  const $=id=>document.getElementById(id);
+ const SCHOOL={fire:{name:'Пламя',c:['#ff9a4a','#ffd08a']},water:{name:'Лёд и вода',c:['#6fc3ff','#d6f2ff']},air:{name:'Ветер и молния',c:['#e2f6ff','#ffffff']},earth:{name:'Камень',c:['#c09a62','#ead3a2']},light:{name:'Свет',c:['#ffe58a','#fff7cf']},dark:{name:'Тьма',c:['#a77bd6','#dcc5ff']},astral:{name:'Магический болт',c:['#94d7ed','#bdebf9']}};
  const KEY='tik-motion-v1',reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
  let settings={enabled:!reduced,speed:1,autoDetail:false};
  try{Object.assign(settings,JSON.parse(localStorage.getItem(KEY)||'{}'));}catch{}
@@ -43,9 +44,32 @@ const FX=(()=>{
  }
  function reveal(cells){if(!cells.length||!usable('map'))return;const e=add({type:'reveal',mode:'map',cells:[...cells],label:'Туман отступает',duration:600});if(e)for(const p of cells)reveals.set(p,e);}
  function effect(kind,from,to,options={}){const mode=options.mode||'battle',b=mode==='battle'?S?.battle:null;const e=add({type:'effect',kind,mode,from,to,battleId:b?.id,...options,duration:options.duration||650});if(e&&e.target&&e.hpBefore!=null&&!health.has(key(e.battleId,e.target)))health.set(key(e.battleId,e.target),e.hpBefore);return e;}
- function impact(u,t,amount,type,{critical=false,defense=null}={}){
-   const label=defense==='dodge'?'Уклонение':defense==='block'?'Блок':critical?'Критическое попадание':type==='magic'?'Магический болт':'Атака';
-   return effect(type,u.pos,t.pos,{actor:u.id,target:t.id,hpBefore:t.hp,hpAfter:t.hp,amount,critical,defense,label});
+ function impact(u,t,amount,type,{critical=false,defense=null,school=null}={}){
+   const label=defense==='dodge'?'Уклонение':defense==='block'?'Блок':critical?'Критическое попадание':type==='magic'?(SCHOOL[school]?.name||'Магия'):'Атака';
+   return effect(type,u.pos,t.pos,{actor:u.id,target:t.id,hpBefore:t.hp,hpAfter:t.hp,amount,critical,defense,school,label});
+ }
+ // Presentation-only poses for the current battle effect: attacker lunge or recoil, target recoil, flash, shield, dodge, fall and rise.
+ function pose(u){
+   const e=current;
+   if(!e||e.type!=='effect'||e.mode!=='battle'||!u||e.battleId!==S?.battle?.id)return null;
+   const p=e.p||0,out={from:e.from,to:e.to,crit:!!e.critical};let any=false;
+   if(['slash','arrow','magic'].includes(e.kind)){
+     if(u.id===e.actor){any=true;if(e.kind==='slash')out.lunge=Math.sin(Math.min(1,p/.65)*Math.PI);else out.recoil=p<.3?Math.sin(p/.3*Math.PI):0;}
+     if(u.id===e.target&&p>.45){
+       any=true;const k=(p-.45)/.55;
+       if(e.defense==='dodge')out.dodge=Math.sin(k*Math.PI);
+       else{out.shake=Math.sin(k*42)*(1-k)*(e.critical?5:3);out.knock=Math.sin(Math.min(1,k*2)*Math.PI)*(e.critical?1.5:1);out.flash=Math.max(0,1-k*2.4);if(e.defense==='block')out.shield=1-k;if(e.hpAfter!=null&&e.hpAfter<=0)out.fall=ease(Math.min(1,k*1.6));}
+     }
+   }
+   if(['heal','revive'].includes(e.kind)&&u.id===e.target&&e.hpBefore!=null&&e.hpBefore<=0){any=true;out.rise=ease(Math.min(1,p*1.4));}
+   return any?out:null;
+ }
+ // Camera shake for critical hits, deterministic (no game randomness is consumed).
+ function shake(){
+   const e=current;
+   if(!e||e.type!=='effect'||e.mode!=='battle'||!e.critical||e.defense==='dodge'||(e.p||0)<.45)return{x:0,y:0};
+   const k=((e.p||0)-.45)/.55,a=5*(1-k);
+   return{x:Math.sin(k*61)*a,y:Math.cos(k*53)*a*.6};
  }
  function city(plot,kind,label){return add({type:'city',mode:'map',plot,kind,label,duration:850});}
  function position(mode,id,pos,coord){const hold=positions.get(key(mode,id)),e=current?.type==='move'&&current.id===id&&current.mode===mode?current:null;if(e){const a=coord(e.from),b=coord(e.to),t=ease(e.p||0);return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,moving:true,walk:Math.sin((e.p||0)*Math.PI*4)*1.7,flip:b.x<a.x};}return{...coord(hold?.pos??pos),moving:false,walk:0};}
@@ -64,14 +88,19 @@ const FX=(()=>{
    if(['arrow','magic','slash'].includes(e.kind)){
      const t=Math.min(1,p/.55),px=from.x+(to.x-from.x)*t,py=from.y+(to.y-from.y)*t-25;
      if(e.kind==='arrow'||e.kind==='magic'){
-       ctx.strokeStyle=e.kind==='magic'?'#94d7ed':'#e9dbaf';ctx.fillStyle=e.kind==='magic'?'#bdebf9':'#e8dcae';ctx.beginPath();ctx.moveTo(px-(to.x-from.x)*.14,py-(to.y-from.y)*.14);ctx.lineTo(px,py);ctx.stroke();ctx.fillRect(px-2,py-2,4,4);
+       const sc=(SCHOOL[e.school]||SCHOOL.astral).c;
+       ctx.strokeStyle=e.kind==='magic'?sc[0]:'#e9dbaf';ctx.fillStyle=e.kind==='magic'?sc[1]:'#e8dcae';ctx.beginPath();ctx.moveTo(px-(to.x-from.x)*.14,py-(to.y-from.y)*.14);ctx.lineTo(px,py);ctx.stroke();ctx.fillRect(px-2,py-2,4,4);
+       if(e.kind==='magic'&&p<.55){for(let k=1;k<=4;k++){ctx.globalAlpha=.6-k*.12;ctx.fillStyle=sc[k%2];const q=Math.max(0,t-k*.06);ctx.fillRect(from.x+(to.x-from.x)*q-2,from.y+(to.y-from.y)*q-26,4,4);}ctx.globalAlpha=1;ctx.fillStyle=sc[1];ctx.beginPath();ctx.arc(px,py,4.5,0,Math.PI*2);ctx.fill();}
      }else{const u=Math.sin(Math.min(1,p/.65)*Math.PI);ctx.translate(from.x+(to.x-from.x)*u*.16,from.y+(to.y-from.y)*u*.16);ctx.strokeStyle='#e8dcbb';ctx.beginPath();ctx.moveTo(5-14*u,-45);ctx.lineTo(18,-15+12*u);ctx.stroke();ctx.translate(-(from.x+(to.x-from.x)*u*.16),-(from.y+(to.y-from.y)*u*.16));}
      if(p>.45){
        ctx.globalAlpha=Math.max(0,1-(p-.45)/.55);
-       ctx.fillStyle=e.defense?'#bdebf9':e.critical?'#ffe195':'#f3b293';
+       const sc=(SCHOOL[e.school]||SCHOOL.astral).c;
+       ctx.fillStyle=e.defense?'#bdebf9':e.critical?'#ffe195':e.kind==='magic'?sc[1]:'#f3b293';
        const text=e.defense==='dodge'?'Уклонение':e.defense==='block'?`Блок · −${e.amount}`:`−${e.amount}`;
        ctx.fillText(text,x,y-48-(p-.45)*30);
-       for(let k=0;k<8;k++){const a=k*Math.PI/4,r=6+(p-.45)*34;ctx.fillRect(x+Math.cos(a)*r,y-22+Math.sin(a)*r*.7,3,2);}
+       const n=e.defense==='dodge'?0:e.critical?14:e.kind==='magic'?12:8,size=e.school==='earth'?4:3;
+       for(let k=0;k<n;k++){const a=k*Math.PI*2/n,r=6+(p-.45)*(e.critical?48:34);if(e.kind==='magic')ctx.fillStyle=sc[k%2];ctx.fillRect(x+Math.cos(a)*r,y-22+Math.sin(a)*r*.7+(e.school==='earth'?(p-.45)*30:0),size,size-1);}
+       if(e.defense==='block'){ctx.globalAlpha=Math.max(0,1-(p-.45)/.55);ctx.strokeStyle='#f3dd98';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y-24,20+(p-.45)*14,-Math.PI*.8,-Math.PI*.2);ctx.stroke();}
      }
    }else{
      const colors={heal:'#b7e7a2',ward:'#a8daf0',curse:'#c5a0e3',guard:'#e8d58f',revive:'#ffe9a3',meditate:'#a9c8ef',surrender:'#efdeba',inspired:'#f7db7b',protect:'#c8dcb4',arrival:'#e4d194'};ctx.strokeStyle=colors[e.kind]||'#e7d6a4';ctx.fillStyle=ctx.strokeStyle;ctx.globalAlpha=.95*(1-p*.6);
@@ -88,5 +117,5 @@ const FX=(()=>{
  document.addEventListener('visibilitychange',()=>{if(document.hidden)finish();});
  document.body.classList.toggle('fx-disabled',!settings.enabled);
  $('fxSkip').onclick=finish;
- return{roll,move,reveal,effect,impact,city,position,revealAlpha,hp,ghosts,overlay,paintCity,auto,whenIdle,finish,reset,configure,openSettings,mute(v){muted+=v?1:-1;muted=Math.max(0,muted);},get busy(){return !!current||queue.length>0;},get active(){return current?{...current}:null;},get queue(){return queue.map(e=>({...e}));},get history(){return history.slice();},get settings(){return{...settings};}};
+ return{pose,shake,roll,move,reveal,effect,impact,city,position,revealAlpha,hp,ghosts,overlay,paintCity,auto,whenIdle,finish,reset,configure,openSettings,mute(v){muted+=v?1:-1;muted=Math.max(0,muted);},get busy(){return !!current||queue.length>0;},get active(){return current?{...current}:null;},get queue(){return queue.map(e=>({...e}));},get history(){return history.slice();},get settings(){return{...settings};}};
 })();
