@@ -12,9 +12,12 @@ const hashes={};
 const ctx=vm.createContext({document:{getElementById:()=>({addEventListener(){}}),addEventListener(){}},queueMicrotask(){}});
 ctx.window=ctx;
 function run(code){return vm.runInContext(code,ctx,{timeout:2500});}
+function sourceText(file){
+  return fs.readFileSync(path.join(upstream,file),'utf8').replaceAll('\r\n','\n');
+}
 for(const name of files){
   const file='src/'+name+'.js';
-  let source=fs.readFileSync(path.join(upstream,file),'utf8');
+  let source=sourceText(file);
   hashes[file]=crypto.createHash('sha1').update('blob '+Buffer.byteLength(source)+'\0'+source).digest('hex');
   if(name==='capital'){
     // Class buildings provided by the web's development module have no authorised
@@ -52,7 +55,7 @@ const damage=run(`(()=>{let vectors=[];for(const armor of [0,25,90,120])for(cons
 const newGameRng=run('newGame.toString()').match(/let z=seed>>>0;const random=\(\)=>\{[^}]+\};/);
 if(!newGameRng) throw Error('Inspect the RNG initializer in newGame before refreshing reference values');
 const rng=run(`[0,1,42,4294967295].map(seed=>{${newGameRng[0]}return {seed,values:Array.from({length:6},()=>random()*4294967296)}})`);
-const development=fs.readFileSync(path.join(upstream,'src/development.js'),'utf8');
+const development=sourceText('src/development.js');
 hashes['src/development.js']=crypto.createHash('sha1').update('blob '+Buffer.byteLength(development)+'\0'+development).digest('hex');
 // The owner approved this module for recipes and spells only. Evaluate its authored
 // table initializers, stopping before the rest of the module patches the web UI.
@@ -64,10 +67,10 @@ const refunds=run(`[[25,12,5],[7,3,2],[18,6,0],[18,6,6]].map(([paid,work,progres
  Capital.edit(f,'q','cancel'); return {paid,work,progress,expected:f.gold};
 })`);
 const doc='docs/DESIGN_GLOBAL_MAP.md';
-const designText=fs.readFileSync(path.join(upstream,doc),'utf8');
+const designText=sourceText(doc);
 const origins={};
 for(const name of [doc,'AGREED_RULES.md','CLAUDE_CHANGES.md']){
-  const bytes=fs.readFileSync(path.join(upstream,name));
+  const bytes=Buffer.from(sourceText(name),'utf8');
   origins[name]=crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
 }
 const sections=designText.split(/(?=^## )/m);
@@ -90,7 +93,7 @@ const data={source_commit:'b07f1941692c605ff76a061647874bc42b00bd75',hashes,docu
  damage_vectors:damage,rng_vectors:rng};
 const target=path.join(project,'data/catalog.json');
 const json=JSON.stringify(data,null,2)+'\n';
-if(verify){if(fs.readFileSync(target,'utf8')!==json)throw Error('catalog differs from executing prototype sources');}
+if(verify){if(fs.readFileSync(target,'utf8').replaceAll('\r\n','\n')!==json)throw Error('catalog differs from executing prototype sources');}
 else fs.writeFileSync(target,json);
 console.log('Reference data verified',Object.fromEntries(['classes','subclasses','monsters','buildings','spells','decrees'].map(k=>[k,Object.keys(data[k]).length])));
 
