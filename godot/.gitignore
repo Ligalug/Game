@@ -1,0 +1,6 @@
+.godot/
+test-results/
+*.tmp
+*.avi
+*.wav.import.tmp
+
